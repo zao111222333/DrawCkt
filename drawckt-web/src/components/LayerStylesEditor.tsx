@@ -64,6 +64,7 @@ const LayerStylesEditor: React.FC<LayerStylesEditorProps> = ({ styles, onUpdate 
   const lastDragOverIndexRef = useRef<number | null>(null);
   const dragStartPosRef = useRef<{ x: number; y: number; time: number } | null>(null);
   const originalLayerOrderRef = useRef<string[] | null>(null);
+  const isDraggingRef = useRef<boolean>(false);
   const isInitialMount = useRef(true);
   
   // Drag threshold: minimum distance (in pixels) or time (in ms) to consider it a drag
@@ -146,6 +147,7 @@ const LayerStylesEditor: React.FC<LayerStylesEditorProps> = ({ styles, onUpdate 
     setDraggedIndex(index);
     draggedLayerNameRef.current = layerName;
     lastDragOverIndexRef.current = null;
+    isDraggingRef.current = true;
     e.dataTransfer.effectAllowed = 'move';
     e.dataTransfer.setData('text/html', ''); // Required for Firefox
     // Make the dragged element semi-transparent
@@ -255,6 +257,7 @@ const LayerStylesEditor: React.FC<LayerStylesEditorProps> = ({ styles, onUpdate 
     lastDragOverIndexRef.current = null;
     dragStartPosRef.current = null;
     originalLayerOrderRef.current = null;
+    isDraggingRef.current = false;
     
     // Reset opacity
     if (e.currentTarget instanceof HTMLElement) {
@@ -266,6 +269,8 @@ const LayerStylesEditor: React.FC<LayerStylesEditorProps> = ({ styles, onUpdate 
     // Check if this was actually a drag or just a click
     const dragStart = dragStartPosRef.current;
     const originalOrder = originalLayerOrderRef.current;
+    let wasClick = false;
+    
     if (dragStart && originalOrder) {
       const distance = Math.sqrt(
         Math.pow(e.clientX - dragStart.x, 2) + Math.pow(e.clientY - dragStart.y, 2)
@@ -274,6 +279,7 @@ const LayerStylesEditor: React.FC<LayerStylesEditorProps> = ({ styles, onUpdate 
       
       // If distance is too small and time is too short, treat as click
       if (distance < DRAG_THRESHOLD_DISTANCE && time < DRAG_THRESHOLD_TIME) {
+        wasClick = true;
         // Revert any changes made during the "drag"
         setLocalStyles((prevStyles) => ({
           ...prevStyles,
@@ -288,10 +294,29 @@ const LayerStylesEditor: React.FC<LayerStylesEditorProps> = ({ styles, onUpdate 
     lastDragOverIndexRef.current = null;
     dragStartPosRef.current = null;
     originalLayerOrderRef.current = null;
+    isDraggingRef.current = false;
     
     // Reset opacity
     if (e.currentTarget instanceof HTMLElement) {
       e.currentTarget.style.opacity = '1';
+    }
+    
+    // If it was a click, trigger toggle after a short delay to avoid conflicts
+    if (wasClick) {
+      // Store the layer key to toggle after drag end
+      const layerKey = (e.currentTarget as HTMLElement).closest('.layer-item')?.getAttribute('data-layer-key');
+      if (layerKey) {
+        setTimeout(() => {
+          setExpandedLayer((prev) => prev === layerKey ? null : layerKey);
+        }, 10);
+      }
+    }
+  };
+
+  const handleHeaderClick = (_e: React.MouseEvent, layerKey: string) => {
+    // Only toggle if this is not part of a drag operation
+    if (!isDraggingRef.current) {
+      setExpandedLayer((prev) => prev === layerKey ? null : layerKey);
     }
   };
 
@@ -331,6 +356,7 @@ const LayerStylesEditor: React.FC<LayerStylesEditorProps> = ({ styles, onUpdate 
           <div
             key={key}
             className={`layer-item ${isDragging ? 'dragging' : ''} ${isDragOver ? 'drag-over' : ''}`}
+            data-layer-key={key}
             draggable
             onDragStart={(e) => handleDragStart(e, index)}
             onDragOver={(e) => handleDragOver(e, index)}
@@ -338,7 +364,10 @@ const LayerStylesEditor: React.FC<LayerStylesEditorProps> = ({ styles, onUpdate 
             onDrop={handleDrop}
             onDragEnd={handleDragEnd}
           >
-            <div className="layer-header">
+            <div 
+              className="layer-header"
+              onClick={(e) => handleHeaderClick(e, key)}
+            >
               <div className="layer-controls">
                 <button
                   className="layer-order-btn"
@@ -363,16 +392,10 @@ const LayerStylesEditor: React.FC<LayerStylesEditorProps> = ({ styles, onUpdate 
                   ↓
                 </button>
               </div>
-              <span
-                className="layer-name"
-                onClick={() => setExpandedLayer(isExpanded ? null : key)}
-              >
+              <span className="layer-name">
                 {label}
               </span>
-              <span
-                className="expand-icon"
-                onClick={() => setExpandedLayer(isExpanded ? null : key)}
-              >
+              <span className="expand-icon">
                 {isExpanded ? '▼' : '▶'}
               </span>
             </div>
@@ -419,17 +442,9 @@ const LayerStylesEditor: React.FC<LayerStylesEditorProps> = ({ styles, onUpdate 
                   <label>Font Size</label>
                   <input
                     type="number"
-                    step="0.1"
+                    step="0.5"
                     value={layer.font_size}
                     onChange={(e) => updateLayer(key, 'font_size', parseFloat(e.target.value))}
-                  />
-                </div>
-                <div className="field">
-                  <label>Priority</label>
-                  <input
-                    type="number"
-                    value={layer.priority}
-                    onChange={(e) => updateLayer(key, 'priority', parseInt(e.target.value))}
                   />
                 </div>
                 <div className="field">

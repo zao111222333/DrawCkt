@@ -7,8 +7,10 @@ use drawrs::{
 };
 use indexmap::IndexMap;
 use log::info;
+use ordered_float::OrderedFloat;
 use quick_xml::events::Event;
 use quick_xml::Reader;
+use std::collections::HashMap;
 use std::fs;
 use std::path::Path;
 
@@ -151,7 +153,11 @@ impl Renderer {
         }
     }
 
-    fn init_layers<const IS_SCH: bool>(&self, page: &mut Page, layer_order: &[Layer; 6]) -> DrawcktResult<()> {
+    fn init_layers<const IS_SCH: bool>(
+        &self,
+        page: &mut Page,
+        layer_order: &[Layer; 6],
+    ) -> DrawcktResult<()> {
         let mut instance = false;
         let mut annotate = false;
         let mut pin = false;
@@ -162,40 +168,40 @@ impl Renderer {
             match layer {
                 Layer::Instance => {
                     if instance {
-                        return Err(DrawcktError::RepeatLayer(*layer))
+                        return Err(DrawcktError::RepeatLayer(*layer));
                     }
                     instance = true;
-                },
+                }
                 Layer::Annotate => {
                     if annotate {
-                        return Err(DrawcktError::RepeatLayer(*layer))
+                        return Err(DrawcktError::RepeatLayer(*layer));
                     }
                     annotate = true;
-                },
+                }
                 Layer::Pin => {
                     if pin {
-                        return Err(DrawcktError::RepeatLayer(*layer))
+                        return Err(DrawcktError::RepeatLayer(*layer));
                     }
                     pin = true;
-                },
+                }
                 Layer::Device => {
                     if device {
-                        return Err(DrawcktError::RepeatLayer(*layer))
+                        return Err(DrawcktError::RepeatLayer(*layer));
                     }
                     device = true;
-                },
+                }
                 Layer::Wire => {
                     if wire {
-                        return Err(DrawcktError::RepeatLayer(*layer))
+                        return Err(DrawcktError::RepeatLayer(*layer));
                     }
                     wire = true;
-                },
+                }
                 Layer::Text => {
                     if text {
-                        return Err(DrawcktError::RepeatLayer(*layer))
+                        return Err(DrawcktError::RepeatLayer(*layer));
                     }
                     text = true;
-                },
+                }
             }
             let mut layer_cell = drawrs::xml_base::XMLBase::new(Some(layer.id()));
             layer_cell.xml_class = "mxCell".to_string();
@@ -211,10 +217,6 @@ impl Renderer {
         Ok(())
     }
 
-    fn get_wire_style(&self) -> &LayerStyle {
-        &self.layer_styles.wire
-    }
-
     // Generate ID for wire: wire-{net}-{counter} or wire-{uuid}
     fn gen_wire_id(net: &str, counter: usize) -> String {
         if !net.is_empty() {
@@ -223,6 +225,177 @@ impl Renderer {
         } else {
             format!("wire-{}", uuid::Uuid::new_v4().to_string())
         }
+    }
+
+    // Convert wires to HashMap grouped by net, with each wire as a Shape::Line
+    fn wires_to_shapes_by_net(&self) -> HashMap<String, Vec<Vec<[f64; 2]>>> {
+        let mut shapes_by_net = HashMap::new();
+
+        for wire in &self.schematic.wires {
+            if wire.points.len() >= 2 {
+                let line = wire.points.clone();
+                shapes_by_net
+                    .entry(wire.net.clone())
+                    .or_insert_with(Vec::new)
+                    .push(line);
+            }
+        }
+
+        shapes_by_net
+    }
+
+    // Merge lines that share endpoints (same net, same endpoint, only two lines at that point)
+    pub(crate) fn merge_lines(lines: Vec<Vec<[f64; 2]>>) -> Vec<Vec<[f64; 2]>> {
+        if lines.is_empty() {
+            return lines;
+        }
+
+        // Helper to compare points using OrderedFloat
+        let point_eq = |p1: &[f64; 2], p2: &[f64; 2]| -> bool {
+            OrderedFloat(p1[0]) == OrderedFloat(p2[0]) && OrderedFloat(p1[1]) == OrderedFloat(p2[1])
+        };
+
+        let mut merged: Vec<Vec<[f64; 2]>> = Vec::new();
+        let mut processed = vec![false; lines.len()];
+
+        for i in 0..lines.len() {
+            if processed[i] {
+                continue;
+            }
+
+            let mut current_line = lines[i].clone();
+
+            if current_line.is_empty() {
+                processed[i] = true;
+                continue;
+            }
+
+            // Keep trying to merge until no more merges are possible
+            loop {
+                let mut merged_this_round = false;
+
+                // Try to merge with all other unprocessed lines
+                for j in 0..lines.len() {
+                    if i == j || processed[j] {
+                        continue;
+                    }
+
+                    let other_line = &lines[j];
+
+                    if other_line.is_empty() {
+                        continue;
+                    }
+
+                    let current_start = &current_line[0];
+                    let current_end = &current_line[current_line.len() - 1];
+                    let other_start = &other_line[0];
+                    let other_end = &other_line[other_line.len() - 1];
+
+                    // Check if lines share an endpoint
+                    let share_start_start = point_eq(current_start, other_start);
+                    let share_start_end = point_eq(current_start, other_end);
+                    let share_end_start = point_eq(current_end, other_start);
+                    let share_end_end = point_eq(current_end, other_end);
+
+                    if !share_start_start && !share_start_end && !share_end_start && !share_end_end
+                    {
+                        continue;
+                    }
+
+                    // Determine the shared point
+                    let shared_point = if share_start_start {
+                        Some(current_start)
+                    } else if share_start_end {
+                        Some(current_start)
+                    } else if share_end_start {
+                        Some(current_end)
+                    } else {
+                        Some(current_end)
+                    };
+
+                    if let Some(shared) = shared_point {
+                        // Count how many lines connect at this point
+                        // We need to check:
+                        // 1. Unprocessed lines (besides i and j)
+                        // 2. Already merged lines that are kept separate (in merged array)
+                        let mut connection_count = 0;
+
+                        // Check unprocessed lines
+                        for k in 0..lines.len() {
+                            if k == i || k == j || processed[k] {
+                                continue;
+                            }
+                            let points = &lines[k];
+                            if !points.is_empty() {
+                                let line_start = &points[0];
+                                let line_end = &points[points.len() - 1];
+                                if point_eq(line_start, shared) || point_eq(line_end, shared) {
+                                    connection_count += 1;
+                                }
+                            }
+                        }
+
+                        // Check already merged lines that are kept separate
+                        for merged_line in &merged {
+                            if !merged_line.is_empty() {
+                                let line_start = &merged_line[0];
+                                let line_end = &merged_line[merged_line.len() - 1];
+                                if point_eq(line_start, shared) || point_eq(line_end, shared) {
+                                    connection_count += 1;
+                                }
+                            }
+                        }
+
+                        // Only merge if no other lines connect at this point
+                        // This ensures that we only merge when exactly two lines meet at a point
+                        if connection_count == 0 {
+                            // Merge the lines
+                            let mut new_points = current_line.clone();
+
+                            if share_start_start {
+                                // Reverse current line and append other line
+                                new_points.reverse();
+                                new_points.pop(); // Remove duplicate point
+                                new_points.extend_from_slice(other_line);
+                            } else if share_start_end {
+                                // Prepend other line (reversed) to current line
+                                // current_start == other_end, so we reverse other_line and remove its first point
+                                let mut other_reversed = other_line.clone();
+                                _ = other_reversed.pop(); // Remove duplicate point (first point after reverse)
+                                other_reversed.reverse();
+                                other_reversed.extend_from_slice(&new_points);
+                                new_points = other_reversed;
+                            } else if share_end_start {
+                                // Append other line to current
+                                new_points.pop(); // Remove duplicate point
+                                new_points.extend_from_slice(other_line);
+                            } else if share_end_end {
+                                // Append reversed other line to current
+                                let mut other_reversed = other_line.clone();
+                                other_reversed.reverse();
+                                new_points.pop(); // Remove duplicate point
+                                new_points.extend_from_slice(&other_reversed);
+                            }
+
+                            current_line = new_points;
+                            processed[j] = true;
+                            merged_this_round = true;
+                            // Continue to try merging with remaining lines
+                        }
+                    }
+                }
+
+                // If no merge happened this round, we're done with this line
+                if !merged_this_round {
+                    break;
+                }
+            }
+
+            merged.push(current_line);
+            processed[i] = true;
+        }
+
+        merged
     }
 
     // Apply fill style to an Object based on fillStyle value (0-5)
@@ -301,8 +474,6 @@ impl Renderer {
         Ok(contexts)
     }
 
-
-
     // Unified function to render a single Shape
     fn render_shape(
         &self,
@@ -313,177 +484,177 @@ impl Renderer {
     ) -> DrawcktResult<()> {
         match shape {
             Shape::Rect {
-                    layer,
-                    fill_style,
-                    b_box,
-                } => {
-                    if b_box.len() >= 2 {
-                        let x = b_box[0][0] * SCALE;
-                        let y = flip_y(b_box[1][1]);
-                        let width = (b_box[1][0] - b_box[0][0]) * SCALE;
-                        let height = (b_box[1][1] - b_box[0][1]) * SCALE;
-
-                        let layer_style = self.get_layer_style(layer);
-
-                        let mut obj = Object::new(Some(obj_id));
-                        obj.set_position([x, y]);
-                        obj.set_width(width.abs());
-                        obj.set_height(height.abs());
-                        self.apply_fill_style(&mut obj, *fill_style, layer_style);
-                        obj.set_xml_parent(Some(layer.id()));
-                        page.add_object(DiagramObject::Object(obj));
-                    }
-                }
-                Shape::Line { layer, points } => {
-                    if points.len() >= 2 {
-                        let source = &points[0];
-                        let target = &points[points.len() - 1];
-                        let intermediate = if points.len() > 2 {
-                            points[1..points.len() - 1].to_vec()
-                        } else {
-                            Vec::new()
-                        };
-
-                        let width = (target[0] - source[0]).abs() * SCALE;
-                        let height = (target[1] - source[1]).abs() * SCALE;
-
-                        let source_x = source[0] * SCALE;
-                        let source_y = flip_y(source[1]);
-                        let target_x = target[0] * SCALE;
-                        let target_y = flip_y(target[1]);
-
-                        let layer_style = self.get_layer_style(layer);
-
-                        let mut edge = Edge::new(Some(obj_id));
-                        edge.set_stroke_width(Some(layer_style.stroke_width));
-                        edge.set_stroke_color(Some(layer_style.stroke_color.clone()));
-                        edge.set_xml_parent(Some(layer.id()));
-                        edge.geometry().set_width(width);
-                        edge.geometry().set_height(height);
-                        edge.geometry().set_relative(Some(true));
-                        edge.geometry().set_source_point(Some([source_x, source_y]));
-                        edge.geometry().set_target_point(Some([target_x, target_y]));
-
-                        for point in &intermediate {
-                            let point_x = point[0] * SCALE;
-                            let point_y = flip_y(point[1]);
-                            edge.geometry().add_intermediate_point([point_x, point_y]);
-                        }
-
-                        page.add_object(DiagramObject::Edge(edge));
-                    }
-                }
-                Shape::Label {
-                    layer,
-                    text,
-                    xy,
-                    orient: _,
-                    height: _,
-                    justify: _,
-                } => {
-                    let x = xy[0] * SCALE;
-                    let y = flip_y(xy[1]);
+                layer,
+                fill_style,
+                b_box,
+            } => {
+                if b_box.len() >= 2 {
+                    let x = b_box[0][0] * SCALE;
+                    let y = flip_y(b_box[1][1]);
+                    let width = (b_box[1][0] - b_box[0][0]) * SCALE;
+                    let height = (b_box[1][1] - b_box[0][1]) * SCALE;
 
                     let layer_style = self.get_layer_style(layer);
+
                     let mut obj = Object::new(Some(obj_id));
-                    obj.set_value(text.clone());
                     obj.set_position([x, y]);
-                    obj.set_width(100.0);
-                    obj.set_height(30.0);
-                    obj.set_fill_color(Some("none".to_string()));
-                    obj.set_stroke_color(Some("none".to_string()));
-                    obj.set_font_color(Some(layer_style.text_color.clone()));
-                    obj.set_font_size(Some(layer_style.font_size as i32));
+                    obj.set_width(width.abs());
+                    obj.set_height(height.abs());
+                    self.apply_fill_style(&mut obj, *fill_style, layer_style);
                     obj.set_xml_parent(Some(layer.id()));
-                    page.add_object(obj.into());
-                }
-                Shape::Polygon {
-                    layer,
-                    fill_style,
-                    points,
-                } => {
-                    if points.len() >= 3 {
-                        // Calculate bounding box for the polygon
-                        let mut min_x = points[0][0];
-                        let mut min_y_local = points[0][1];
-                        let mut max_x = points[0][0];
-                        let mut max_y_local = points[0][1];
-
-                        for point in points.iter() {
-                            min_x = min_x.min(point[0]);
-                            min_y_local = min_y_local.min(point[1]);
-                            max_x = max_x.max(point[0]);
-                            max_y_local = max_y_local.max(point[1]);
-                        }
-
-                        let x = min_x * SCALE;
-                        let y = flip_y(max_y_local); // Flip the top y coordinate
-                        let width = (max_x - min_x) * SCALE;
-                        let height = (max_y_local - min_y_local) * SCALE;
-
-                        // Convert points to normalized coordinates (0-1) within the bounding box
-                        // Draw.io polygon uses polyCoords in format "[[x1,y1],[x2,y2],...]"
-                        // Coordinates are normalized (0-1) relative to the bounding box
-                        // Note: Y coordinates in polyCoords are also flipped (1 - norm_y)
-                        let bbox_width = max_x - min_x;
-                        let bbox_height = max_y_local - min_y_local;
-
-                        let poly_coords: Vec<[f64; 2]> = points
-                            .iter()
-                            .map(|p| {
-                                let norm_x = if bbox_width > 0.0 {
-                                    (p[0] - min_x) / bbox_width
-                                } else {
-                                    0.0
-                                };
-                                // Flip Y coordinate: norm_y_flipped = 1 - norm_y
-                                let norm_y = if bbox_height > 0.0 {
-                                    (p[1] - min_y_local) / bbox_height
-                                } else {
-                                    0.0
-                                };
-                                let norm_y_flipped = 1.0 - norm_y;
-                                [norm_x, norm_y_flipped]
-                            })
-                            .collect();
-
-                        let layer_style = self.get_layer_style(layer);
-
-                        let mut obj = Object::new(Some(obj_id));
-                        obj.set_position([x, y]);
-                        obj.set_width(width.abs());
-                        obj.set_height(height.abs());
-                        self.apply_fill_style(&mut obj, *fill_style, layer_style);
-                        obj.set_xml_parent(Some(layer.id()));
-                        obj.set_shape("mxgraph.basic.polygon".to_string());
-                        obj.set_poly_coords(poly_coords);
-                        page.add_object(DiagramObject::Object(obj));
-                    }
-                }
-                Shape::Ellipse {
-                    layer,
-                    fill_style,
-                    b_box,
-                } => {
-                    if b_box.len() >= 2 {
-                        let x = b_box[0][0] * SCALE;
-                        let y = flip_y(b_box[1][1]);
-                        let width = (b_box[1][0] - b_box[0][0]) * SCALE;
-                        let height = (b_box[1][1] - b_box[0][1]) * SCALE;
-
-                        let layer_style = self.get_layer_style(layer);
-
-                        let mut obj = Object::new(Some(obj_id));
-                        obj.set_position([x, y]);
-                        obj.set_width(width.abs());
-                        obj.set_height(height.abs());
-                        self.apply_fill_style(&mut obj, *fill_style, layer_style);
-                        obj.set_xml_parent(Some(layer.id()));
-                        obj.set_shape("ellipse".to_string());
-                        page.add_object(obj.into());
-                    }
+                    page.add_object(DiagramObject::Object(obj));
                 }
             }
+            Shape::Line { layer, points } => {
+                if points.len() >= 2 {
+                    let source = &points[0];
+                    let target = &points[points.len() - 1];
+                    let intermediate = if points.len() > 2 {
+                        points[1..points.len() - 1].to_vec()
+                    } else {
+                        Vec::new()
+                    };
+
+                    let width = (target[0] - source[0]).abs() * SCALE;
+                    let height = (target[1] - source[1]).abs() * SCALE;
+
+                    let source_x = source[0] * SCALE;
+                    let source_y = flip_y(source[1]);
+                    let target_x = target[0] * SCALE;
+                    let target_y = flip_y(target[1]);
+
+                    let layer_style = self.get_layer_style(layer);
+
+                    let mut edge = Edge::new(Some(obj_id));
+                    edge.set_stroke_width(Some(layer_style.stroke_width));
+                    edge.set_stroke_color(Some(layer_style.stroke_color.clone()));
+                    edge.set_xml_parent(Some(layer.id()));
+                    edge.geometry().set_width(width);
+                    edge.geometry().set_height(height);
+                    edge.geometry().set_relative(Some(true));
+                    edge.geometry().set_source_point(Some([source_x, source_y]));
+                    edge.geometry().set_target_point(Some([target_x, target_y]));
+
+                    for point in &intermediate {
+                        let point_x = point[0] * SCALE;
+                        let point_y = flip_y(point[1]);
+                        edge.geometry().add_intermediate_point([point_x, point_y]);
+                    }
+
+                    page.add_object(DiagramObject::Edge(edge));
+                }
+            }
+            Shape::Label {
+                layer,
+                text,
+                xy,
+                orient: _,
+                height: _,
+                justify: _,
+            } => {
+                let x = xy[0] * SCALE;
+                let y = flip_y(xy[1]);
+
+                let layer_style = self.get_layer_style(layer);
+                let mut obj = Object::new(Some(obj_id));
+                obj.set_value(text.clone());
+                obj.set_position([x, y]);
+                obj.set_width(100.0);
+                obj.set_height(30.0);
+                obj.set_fill_color(Some("none".to_string()));
+                obj.set_stroke_color(Some("none".to_string()));
+                obj.set_font_color(Some(layer_style.text_color.clone()));
+                obj.set_font_size(Some(layer_style.font_size as i32));
+                obj.set_xml_parent(Some(layer.id()));
+                page.add_object(obj.into());
+            }
+            Shape::Polygon {
+                layer,
+                fill_style,
+                points,
+            } => {
+                if points.len() >= 3 {
+                    // Calculate bounding box for the polygon
+                    let mut min_x = points[0][0];
+                    let mut min_y_local = points[0][1];
+                    let mut max_x = points[0][0];
+                    let mut max_y_local = points[0][1];
+
+                    for point in points.iter() {
+                        min_x = min_x.min(point[0]);
+                        min_y_local = min_y_local.min(point[1]);
+                        max_x = max_x.max(point[0]);
+                        max_y_local = max_y_local.max(point[1]);
+                    }
+
+                    let x = min_x * SCALE;
+                    let y = flip_y(max_y_local); // Flip the top y coordinate
+                    let width = (max_x - min_x) * SCALE;
+                    let height = (max_y_local - min_y_local) * SCALE;
+
+                    // Convert points to normalized coordinates (0-1) within the bounding box
+                    // Draw.io polygon uses polyCoords in format "[[x1,y1],[x2,y2],...]"
+                    // Coordinates are normalized (0-1) relative to the bounding box
+                    // Note: Y coordinates in polyCoords are also flipped (1 - norm_y)
+                    let bbox_width = max_x - min_x;
+                    let bbox_height = max_y_local - min_y_local;
+
+                    let poly_coords: Vec<[f64; 2]> = points
+                        .iter()
+                        .map(|p| {
+                            let norm_x = if bbox_width > 0.0 {
+                                (p[0] - min_x) / bbox_width
+                            } else {
+                                0.0
+                            };
+                            // Flip Y coordinate: norm_y_flipped = 1 - norm_y
+                            let norm_y = if bbox_height > 0.0 {
+                                (p[1] - min_y_local) / bbox_height
+                            } else {
+                                0.0
+                            };
+                            let norm_y_flipped = 1.0 - norm_y;
+                            [norm_x, norm_y_flipped]
+                        })
+                        .collect();
+
+                    let layer_style = self.get_layer_style(layer);
+
+                    let mut obj = Object::new(Some(obj_id));
+                    obj.set_position([x, y]);
+                    obj.set_width(width.abs());
+                    obj.set_height(height.abs());
+                    self.apply_fill_style(&mut obj, *fill_style, layer_style);
+                    obj.set_xml_parent(Some(layer.id()));
+                    obj.set_shape("mxgraph.basic.polygon".to_string());
+                    obj.set_poly_coords(poly_coords);
+                    page.add_object(DiagramObject::Object(obj));
+                }
+            }
+            Shape::Ellipse {
+                layer,
+                fill_style,
+                b_box,
+            } => {
+                if b_box.len() >= 2 {
+                    let x = b_box[0][0] * SCALE;
+                    let y = flip_y(b_box[1][1]);
+                    let width = (b_box[1][0] - b_box[0][0]) * SCALE;
+                    let height = (b_box[1][1] - b_box[0][1]) * SCALE;
+
+                    let layer_style = self.get_layer_style(layer);
+
+                    let mut obj = Object::new(Some(obj_id));
+                    obj.set_position([x, y]);
+                    obj.set_width(width.abs());
+                    obj.set_height(height.abs());
+                    self.apply_fill_style(&mut obj, *fill_style, layer_style);
+                    obj.set_xml_parent(Some(layer.id()));
+                    obj.set_shape("ellipse".to_string());
+                    page.add_object(obj.into());
+                }
+            }
+        }
         Ok(())
     }
 
@@ -494,7 +665,12 @@ impl Renderer {
         let flip_y = |y: f64| -> f64 { -y * SCALE };
         // Render each shape in the template using SCALE to convert coordinates and flip Y
         for (idx, shape) in template.shapes.iter().enumerate() {
-            self.render_shape(shape, page, &flip_y, template.gen_obj_id(shape.layer(), idx))?;
+            self.render_shape(
+                shape,
+                page,
+                &flip_y,
+                template.gen_obj_id(shape.layer(), idx),
+            )?;
         }
 
         Ok(())
@@ -554,49 +730,30 @@ impl Renderer {
         }
 
         // Render wires in wire layer
+        // Convert wires to HashMap grouped by net, then merge lines and render using Shape::Line
+        let wires_by_net = self.wires_to_shapes_by_net();
         let mut wire_counter = 0;
-        for wire in &self.schematic.wires {
-            if wire.points.len() >= 2 {
-                let source = &wire.points[0];
-                let target = &wire.points[wire.points.len() - 1];
-                let intermediate = if wire.points.len() > 2 {
-                    wire.points[1..wire.points.len() - 1].to_vec()
-                } else {
-                    Vec::new()
-                };
 
-                // Wire coordinates from schematic.json are in normal coordinate system
-                // Need to flip Y coordinates to match drawio coordinate system
-                // Wires use y=0 as reference point for flipping
-                let source_x = source[0] * SCALE;
-                let source_y = flip_y(source[1]);
-                let target_x = target[0] * SCALE;
-                let target_y = flip_y(target[1]);
+        for (net_name, lines) in wires_by_net {
+            // Merge lines that share endpoints
+            if net_name == "net10" {
+                dbg!(&lines);
+            }
+            let merged_lines = Self::merge_lines(lines);
 
-                let width = (target_x - source_x).abs();
-                let height = (target_y - source_y).abs();
-
-                let mut edge = Edge::new(Some(Self::gen_wire_id(&wire.net, wire_counter)));
+            // Render each merged line using render_shape
+            for line in merged_lines {
+                let wire_id = Self::gen_wire_id(&net_name, wire_counter);
                 wire_counter += 1;
-
-                let wire_style = self.get_wire_style();
-                edge.set_stroke_width(Some(wire_style.stroke_width));
-                edge.set_stroke_color(Some(wire_style.stroke_color.clone()));
-                edge.set_xml_parent(Some("layer-wire".to_string()));
-
-                edge.geometry().set_width(width);
-                edge.geometry().set_height(height);
-                edge.geometry().set_relative(Some(true));
-                edge.geometry().set_source_point(Some([source_x, source_y]));
-                edge.geometry().set_target_point(Some([target_x, target_y]));
-
-                for point in &intermediate {
-                    let point_x = point[0] * SCALE;
-                    let point_y = flip_y(point[1]);
-                    edge.geometry().add_intermediate_point([point_x, point_y]);
-                }
-
-                schematic_page.add_object(DiagramObject::Edge(edge));
+                self.render_shape(
+                    &Shape::Line {
+                        points: line,
+                        layer: Layer::Wire,
+                    },
+                    &mut schematic_page,
+                    &flip_y,
+                    wire_id,
+                )?;
             }
         }
 
@@ -627,20 +784,29 @@ impl Renderer {
         // Render labels
         let mut label_counter = 0;
         for label in &self.schematic.labels {
-            self.render_shape(label, &mut schematic_page, &flip_y, format!("label-{}", label_counter))?;
+            self.render_shape(
+                label,
+                &mut schematic_page,
+                &flip_y,
+                format!("label-{}", label_counter),
+            )?;
             label_counter += 1;
         }
 
         // Render shapes (with wire_show_intersection check)
         let mut shape_counter = 0;
         for shape in &self.schematic.shapes {
-            
             // Skip wire layer shapes if wire_show_intersection is false
             if shape.layer().eq(&Layer::Wire) && !self.layer_styles.wire_show_intersection {
                 continue;
             }
-            
-            self.render_shape(shape, &mut schematic_page, &flip_y, format!("shape-{}", shape_counter))?;
+
+            self.render_shape(
+                shape,
+                &mut schematic_page,
+                &flip_y,
+                format!("shape-{}", shape_counter),
+            )?;
             shape_counter += 1;
         }
 

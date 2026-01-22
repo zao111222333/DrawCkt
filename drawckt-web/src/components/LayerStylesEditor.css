@@ -47,6 +47,7 @@
   background: #f8f9fa;
   user-select: none;
   transition: all 0.2s ease;
+  cursor: pointer;
 }
 
 .layer-controls {

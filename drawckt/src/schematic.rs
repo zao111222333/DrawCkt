@@ -15,14 +15,14 @@ pub enum Layer {
 
 impl fmt::Display for Layer {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-            f.write_str(match self {
-                Layer::Instance => "instance",
-                Layer::Annotate => "annotate",
-                Layer::Pin => "pin",
-                Layer::Device => "device",
-                Layer::Wire => "wire",
-                Layer::Text => "text",
-            })
+        f.write_str(match self {
+            Layer::Instance => "instance",
+            Layer::Annotate => "annotate",
+            Layer::Pin => "pin",
+            Layer::Device => "device",
+            Layer::Wire => "wire",
+            Layer::Text => "text",
+        })
     }
 }
 
@@ -236,7 +236,11 @@ impl Shape {
     // Helper function to extract layer from Shape
     pub fn layer(&self) -> &Layer {
         match self {
-            Self::Rect { layer, .. } |Self::Line { layer, .. } |Self::Label { layer, .. } |Self::Polygon { layer, .. } |Self::Ellipse { layer, .. } => layer,
+            Self::Rect { layer, .. }
+            | Self::Line { layer, .. }
+            | Self::Label { layer, .. }
+            | Self::Polygon { layer, .. }
+            | Self::Ellipse { layer, .. } => layer,
         }
     }
 }
