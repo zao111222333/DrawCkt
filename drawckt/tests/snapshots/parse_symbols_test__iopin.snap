@@ -1,0 +1,306 @@
+---
+source: tests/parse_symbols_test.rs
+expression: pages
+---
+{
+    "basic/iopin": SymbolPageData {
+        objects: [
+            Object(
+                Object {
+                    base: DiagramBase {
+                        base: XMLBase {
+                            id: "basic/iopin-instance-0",
+                            xml_class: "xml_tag",
+                            xml_parent: Some(
+                                "layer-instance",
+                            ),
+                            tag: Some(
+                                "instance",
+                            ),
+                            tooltip: None,
+                            visible: None,
+                            value: Some(
+                                "",
+                            ),
+                            group_geometry: None,
+                        },
+                        style_attributes: [
+                            "html",
+                            "whiteSpace",
+                            "rounded",
+                            "fillColor",
+                            "strokeColor",
+                            "opacity",
+                            "strokeWidth",
+                            "fillStyle",
+                        ],
+                        page: None,
+                        base_style: None,
+                        style_properties: {
+                            "whiteSpace": "wrap",
+                            "fillColor": "#0000FF",
+                            "strokeColor": "none",
+                            "strokeWidth": "1",
+                            "fillStyle": "cross-hatch",
+                        },
+                    },
+                    geometry: Geometry {
+                        bounding_box: BoundingBox {
+                            min_x: -17.5,
+                            min_y: 0.0,
+                            width: 35.0,
+                            height: 25.0,
+                        },
+                        as_attribute: "geometry",
+                        relative: None,
+                        source_point: None,
+                        target_point: None,
+                        intermediate_points: [],
+                        flip_rotation: FlipRotation {
+                            flip_h: None,
+                            flip_v: None,
+                            legacy_anchor_points: None,
+                            rotation: None,
+                        },
+                    },
+                    white_space: Some(
+                        "wrap",
+                    ),
+                    rounded: None,
+                    fill_color: Some(
+                        "#0000FF",
+                    ),
+                    stroke_color: Some(
+                        "none",
+                    ),
+                    stroke_width: Some(
+                        1.0,
+                    ),
+                    opacity: None,
+                    text_format: TextFormat {
+                        font_size: None,
+                        font_color: None,
+                    },
+                    vertex: 1,
+                    poly_coords: [],
+                },
+            ),
+            Object(
+                Object {
+                    base: DiagramBase {
+                        base: XMLBase {
+                            id: "basic/iopin-annotate-1",
+                            xml_class: "xml_tag",
+                            xml_parent: Some(
+                                "layer-annotate",
+                            ),
+                            tag: Some(
+                                "annotate",
+                            ),
+                            tooltip: None,
+                            visible: None,
+                            value: Some(
+                                "",
+                            ),
+                            group_geometry: None,
+                        },
+                        style_attributes: [
+                            "html",
+                            "whiteSpace",
+                            "rounded",
+                            "fillColor",
+                            "strokeColor",
+                            "opacity",
+                            "strokeWidth",
+                            "shape",
+                        ],
+                        page: None,
+                        base_style: None,
+                        style_properties: {
+                            "whiteSpace": "wrap",
+                            "fillColor": "none",
+                            "strokeColor": "#00FF00",
+                            "strokeWidth": "1",
+                            "shape": "mxgraph.basic.polygon",
+                        },
+                    },
+                    geometry: Geometry {
+                        bounding_box: BoundingBox {
+                            min_x: -17.5,
+                            min_y: 1.2499999999999998,
+                            width: 35.0,
+                            height: 22.5,
+                        },
+                        as_attribute: "geometry",
+                        relative: None,
+                        source_point: None,
+                        target_point: None,
+                        intermediate_points: [],
+                        flip_rotation: FlipRotation {
+                            flip_h: None,
+                            flip_v: None,
+                            legacy_anchor_points: None,
+                            rotation: None,
+                        },
+                    },
+                    white_space: Some(
+                        "wrap",
+                    ),
+                    rounded: None,
+                    fill_color: Some(
+                        "none",
+                    ),
+                    stroke_color: Some(
+                        "#00FF00",
+                    ),
+                    stroke_width: Some(
+                        1.0,
+                    ),
+                    opacity: None,
+                    text_format: TextFormat {
+                        font_size: None,
+                        font_color: None,
+                    },
+                    vertex: 1,
+                    poly_coords: [
+                        [
+                            1.0,
+                            0.5,
+                        ],
+                        [
+                            0.6785714285714286,
+                            0.0,
+                        ],
+                        [
+                            0.3214285714285714,
+                            0.0,
+                        ],
+                        [
+                            0.0,
+                            0.5,
+                        ],
+                        [
+                            0.3214285714285714,
+                            1.0,
+                        ],
+                        [
+                            0.6785714285714286,
+                            1.0,
+                        ],
+                    ],
+                },
+            ),
+            Object(
+                Object {
+                    base: DiagramBase {
+                        base: XMLBase {
+                            id: "basic/iopin-pin-2",
+                            xml_class: "xml_tag",
+                            xml_parent: Some(
+                                "layer-pin",
+                            ),
+                            tag: Some(
+                                "pin",
+                            ),
+                            tooltip: None,
+                            visible: None,
+                            value: Some(
+                                "",
+                            ),
+                            group_geometry: None,
+                        },
+                        style_attributes: [
+                            "html",
+                            "whiteSpace",
+                            "rounded",
+                            "fillColor",
+                            "strokeColor",
+                            "opacity",
+                            "strokeWidth",
+                            "shape",
+                        ],
+                        page: None,
+                        base_style: None,
+                        style_properties: {
+                            "whiteSpace": "wrap",
+                            "fillColor": "#FF0000",
+                            "strokeColor": "none",
+                            "strokeWidth": "2",
+                            "shape": "mxgraph.basic.polygon",
+                        },
+                    },
+                    geometry: Geometry {
+                        bounding_box: BoundingBox {
+                            min_x: -17.5,
+                            min_y: 1.2499999999999998,
+                            width: 35.0,
+                            height: 22.5,
+                        },
+                        as_attribute: "geometry",
+                        relative: None,
+                        source_point: None,
+                        target_point: None,
+                        intermediate_points: [],
+                        flip_rotation: FlipRotation {
+                            flip_h: None,
+                            flip_v: None,
+                            legacy_anchor_points: None,
+                            rotation: None,
+                        },
+                    },
+                    white_space: Some(
+                        "wrap",
+                    ),
+                    rounded: None,
+                    fill_color: Some(
+                        "#FF0000",
+                    ),
+                    stroke_color: Some(
+                        "none",
+                    ),
+                    stroke_width: Some(
+                        2.0,
+                    ),
+                    opacity: None,
+                    text_format: TextFormat {
+                        font_size: None,
+                        font_color: None,
+                    },
+                    vertex: 1,
+                    poly_coords: [
+                        [
+                            1.0,
+                            0.5,
+                        ],
+                        [
+                            0.6785714285714286,
+                            1.0,
+                        ],
+                        [
+                            0.3214285714285714,
+                            1.0,
+                        ],
+                        [
+                            0.0,
+                            0.5,
+                        ],
+                        [
+                            0.3214285714285714,
+                            0.0,
+                        ],
+                        [
+                            0.6785714285714286,
+                            0.0,
+                        ],
+                    ],
+                },
+            ),
+        ],
+        origin_bounding_box: BoundingBox {
+            min_x: -17.5,
+            min_y: 0.0,
+            width: 35.0,
+            height: 25.0,
+        },
+    },
+}

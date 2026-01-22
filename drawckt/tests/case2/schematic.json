@@ -1,0 +1,19 @@
+{
+  "design": {"lib": "amacro3_0_gen_TB_mos3", "cell": "V2I"},
+  "instances": [
+    {"name": "PIN5", "lib": "basic", "cell": "iopin", "x": -1.25, "y": -0.625, "orient": "R0"}
+  ],
+  "wires": [
+    {"net": "ibn", "points": [[-1.3125,-1.0], [-1.3125,-0.625]]}
+  ],
+  "pins": [
+  ],
+  "symbols": [
+    {
+      "lib": "basic",
+      "cell": "iopin",
+      "shapes": [{"type": "polygon", "layer": "annotate", "fillStyle": 1, "points": [[0.0875,0.0], [0.03125,0.05625], [-0.03125,0.05625], [-0.0875,0.0], [-0.03125,-0.05625], [0.03125,-0.05625]]}, {"type": "rect", "layer": "instance", "fillStyle": 3, "bBox": [[-0.0875,-0.0625],[0.0875,0.0625]]}, {"type": "polygon", "layer": "pin", "fillStyle": 2, "points": [[0.0875,0.0], [0.03125,-0.05625], [-0.03125,-0.05625], [-0.0875,0.0], [-0.03125,0.05625], [0.03125,0.05625]]}],
+      "pins": [{"name": "iopin", "direction": "inputOutput", "x": 0.0, "y": 0.0}]
+    }
+  ]
+}

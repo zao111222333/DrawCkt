@@ -1,0 +1,171 @@
+.symbols-list {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  background: #ffffff;
+  min-height: 0;
+  height: 0; /* Force flex item to respect container height */
+}
+
+.symbols-list.empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 200px;
+}
+
+.empty-message {
+  color: #6c757d;
+  font-size: 15px;
+  text-align: center;
+  font-weight: 400;
+}
+
+.symbol-item {
+  border: 1px solid #e9ecef;
+  border-radius: 4px;
+  overflow: hidden;
+  background: #ffffff;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+  transition: box-shadow 0.2s ease, border-color 0.2s ease;
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  align-items: center;
+  flex-shrink: 0; /* Prevent compression, height should be determined by drawio content */
+}
+
+.symbol-item:hover {
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
+  border-color: #dee2e6;
+}
+
+.symbol-header {
+  padding: 3px 6px;
+  background: #f8f9fa;
+  border-bottom: 1px solid #e9ecef;
+  flex-shrink: 0;
+  min-height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  gap: 8px;
+}
+
+.symbol-name {
+  font-size: 10px;
+  font-weight: 500;
+  color: #495057;
+  font-family: 'SF Mono', 'Monaco', 'Cascadia Code', 'Courier New', monospace;
+  letter-spacing: 0.01em;
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex: 1;
+}
+
+.symbol-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.symbol-undo-btn,
+.symbol-redo-btn {
+  background-color: #6c757d;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 2px 8px;
+  font-size: 10px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  flex-shrink: 0;
+  line-height: 1;
+  min-width: 40px;
+}
+
+.symbol-undo-btn.enabled,
+.symbol-redo-btn.enabled {
+  opacity: 1;
+  cursor: pointer;
+}
+
+.symbol-undo-btn.enabled:hover,
+.symbol-redo-btn.enabled:hover {
+  background-color: #5a6268;
+}
+
+.symbol-undo-btn.enabled:active,
+.symbol-redo-btn.enabled:active {
+  background-color: #545b62;
+}
+
+.symbol-undo-btn.disabled,
+.symbol-redo-btn.disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+.symbol-edit-btn {
+  background-color: #007bff;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 2px 8px;
+  font-size: 10px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  flex-shrink: 0;
+}
+
+.symbol-edit-btn:hover {
+  background-color: #0056b3;
+}
+
+.symbol-edit-btn:active {
+  background-color: #004085;
+}
+
+.mxgraph-wrapper {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 0px;
+  background: #ffffff;
+  overflow: hidden;
+  flex-shrink: 0; /* Prevent compression, height should be determined by drawio content */
+}
+
+.symbol-item .mxgraph {
+  background: #ffffff;
+  width: 100%;
+  max-width: 100%;
+  margin: 0 auto;
+  padding: 0;
+  border: none;
+  min-height: 0;
+  flex-shrink: 0;
+  display: block;
+  text-align: center;
+}
+
+.symbol-item .mxgraph > *,
+.symbol-item .mxgraph iframe,
+.symbol-item .mxgraph canvas,
+.symbol-item .mxgraph svg {
+  margin: 0 auto;
+  display: block;
+}
+

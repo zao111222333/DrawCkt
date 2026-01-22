@@ -1,0 +1,1333 @@
+---
+source: tests/parse_symbols_test.rs
+expression: pages
+---
+{
+    "tsmcN28/rupolym": SymbolPageData {
+        objects: [
+            Object(
+                Object {
+                    base: DiagramBase {
+                        base: XMLBase {
+                            id: "tsmcN28/rupolym-instance-0",
+                            xml_class: "xml_tag",
+                            xml_parent: Some(
+                                "layer-instance",
+                            ),
+                            tag: None,
+                            tooltip: None,
+                            visible: None,
+                            value: Some(
+                                "",
+                            ),
+                            group_geometry: None,
+                        },
+                        style_attributes: [
+                            "html",
+                            "whiteSpace",
+                            "rounded",
+                            "fillColor",
+                            "strokeColor",
+                            "opacity",
+                            "strokeWidth",
+                        ],
+                        page: None,
+                        base_style: None,
+                        style_properties: {
+                            "whiteSpace": "wrap",
+                            "fillColor": "none",
+                            "strokeColor": "#0000FF",
+                            "strokeWidth": "1",
+                        },
+                    },
+                    geometry: Geometry {
+                        bounding_box: BoundingBox {
+                            min_x: -25.0,
+                            min_y: 0.0,
+                            width: 50.0,
+                            height: 75.0,
+                        },
+                        as_attribute: "geometry",
+                        relative: None,
+                        source_point: None,
+                        target_point: None,
+                        intermediate_points: [],
+                        flip_rotation: FlipRotation {
+                            flip_h: None,
+                            flip_v: None,
+                            legacy_anchor_points: None,
+                            rotation: None,
+                        },
+                    },
+                    white_space: Some(
+                        "wrap",
+                    ),
+                    rounded: None,
+                    fill_color: Some(
+                        "none",
+                    ),
+                    stroke_color: Some(
+                        "#0000FF",
+                    ),
+                    stroke_width: Some(
+                        1.0,
+                    ),
+                    opacity: None,
+                    text_format: TextFormat {
+                        font_size: None,
+                        font_color: None,
+                    },
+                    vertex: 1,
+                    poly_coords: [],
+                },
+            ),
+            Object(
+                Object {
+                    base: DiagramBase {
+                        base: XMLBase {
+                            id: "tsmcN28/rupolym-device-1",
+                            xml_class: "xml_tag",
+                            xml_parent: Some(
+                                "layer-device",
+                            ),
+                            tag: None,
+                            tooltip: None,
+                            visible: None,
+                            value: Some(
+                                "[@cellName]",
+                            ),
+                            group_geometry: None,
+                        },
+                        style_attributes: [
+                            "html",
+                            "whiteSpace",
+                            "rounded",
+                            "fillColor",
+                            "strokeColor",
+                            "opacity",
+                            "fontColor",
+                            "fontSize",
+                        ],
+                        page: None,
+                        base_style: None,
+                        style_properties: {
+                            "whiteSpace": "wrap",
+                            "fillColor": "none",
+                            "strokeColor": "none",
+                            "fontColor": "#FF0000",
+                            "fontSize": "16",
+                        },
+                    },
+                    geometry: Geometry {
+                        bounding_box: BoundingBox {
+                            min_x: -12.5,
+                            min_y: -3.75,
+                            width: 100.0,
+                            height: 30.0,
+                        },
+                        as_attribute: "geometry",
+                        relative: None,
+                        source_point: None,
+                        target_point: None,
+                        intermediate_points: [],
+                        flip_rotation: FlipRotation {
+                            flip_h: None,
+                            flip_v: None,
+                            legacy_anchor_points: None,
+                            rotation: None,
+                        },
+                    },
+                    white_space: Some(
+                        "wrap",
+                    ),
+                    rounded: None,
+                    fill_color: Some(
+                        "none",
+                    ),
+                    stroke_color: Some(
+                        "none",
+                    ),
+                    stroke_width: None,
+                    opacity: None,
+                    text_format: TextFormat {
+                        font_size: Some(
+                            16,
+                        ),
+                        font_color: Some(
+                            "#FF0000",
+                        ),
+                    },
+                    vertex: 1,
+                    poly_coords: [],
+                },
+            ),
+            Edge(
+                Edge {
+                    base: DiagramBase {
+                        base: XMLBase {
+                            id: "tsmcN28/rupolym-device-2",
+                            xml_class: "xml_tag",
+                            xml_parent: Some(
+                                "layer-device",
+                            ),
+                            tag: None,
+                            tooltip: None,
+                            visible: None,
+                            value: Some(
+                                "",
+                            ),
+                            group_geometry: None,
+                        },
+                        style_attributes: [
+                            "html",
+                            "rounded",
+                            "strokeColor",
+                            "strokeWidth",
+                            "fillColor",
+                            "endArrow",
+                            "startArrow",
+                            "endFill",
+                            "startFill",
+                            "endSize",
+                            "startSize",
+                            "opacity",
+                        ],
+                        page: None,
+                        base_style: None,
+                        style_properties: {
+                            "endArrow": "none",
+                            "rounded": "0",
+                            "strokeColor": "#00FF00",
+                            "strokeWidth": "2",
+                        },
+                    },
+                    source: None,
+                    target: None,
+                    waypoints: "orthogonal",
+                    connection: "line",
+                    pattern: "solid",
+                    edge: 1,
+                    stroke_color: Some(
+                        "#00FF00",
+                    ),
+                    stroke_width: Some(
+                        2.0,
+                    ),
+                    fill_color: None,
+                    line_end_target: Some(
+                        "none",
+                    ),
+                    line_end_source: None,
+                    end_fill_target: false,
+                    end_fill_source: false,
+                    end_size: None,
+                    start_size: None,
+                    rounded: 0,
+                    opacity: None,
+                    geometry: Geometry {
+                        bounding_box: BoundingBox {
+                            min_x: 0.0,
+                            min_y: 0.0,
+                            width: 120.0,
+                            height: 75.0,
+                        },
+                        as_attribute: "geometry",
+                        relative: Some(
+                            true,
+                        ),
+                        source_point: Some(
+                            [
+                                0.0,
+                                75.0,
+                            ],
+                        ),
+                        target_point: Some(
+                            [
+                                0.0,
+                                0.0,
+                            ],
+                        ),
+                        intermediate_points: [
+                            [
+                                0.0,
+                                60.0,
+                            ],
+                            [
+                                -12.5,
+                                56.25,
+                            ],
+                            [
+                                12.5,
+                                48.75,
+                            ],
+                            [
+                                -12.5,
+                                41.25,
+                            ],
+                            [
+                                12.5,
+                                33.75,
+                            ],
+                            [
+                                -12.5,
+                                26.25,
+                            ],
+                            [
+                                12.5,
+                                18.75,
+                            ],
+                            [
+                                0.0,
+                                15.0,
+                            ],
+                        ],
+                        flip_rotation: FlipRotation {
+                            flip_h: None,
+                            flip_v: None,
+                            legacy_anchor_points: None,
+                            rotation: None,
+                        },
+                    },
+                },
+            ),
+            Object(
+                Object {
+                    base: DiagramBase {
+                        base: XMLBase {
+                            id: "tsmcN28/rupolym-annotate-3",
+                            xml_class: "xml_tag",
+                            xml_parent: Some(
+                                "layer-annotate",
+                            ),
+                            tag: None,
+                            tooltip: None,
+                            visible: None,
+                            value: Some(
+                                "cdsName()",
+                            ),
+                            group_geometry: None,
+                        },
+                        style_attributes: [
+                            "html",
+                            "whiteSpace",
+                            "rounded",
+                            "fillColor",
+                            "strokeColor",
+                            "opacity",
+                            "fontColor",
+                            "fontSize",
+                        ],
+                        page: None,
+                        base_style: None,
+                        style_properties: {
+                            "whiteSpace": "wrap",
+                            "fillColor": "none",
+                            "strokeColor": "none",
+                            "fontColor": "#FF9900",
+                            "fontSize": "10",
+                        },
+                    },
+                    geometry: Geometry {
+                        bounding_box: BoundingBox {
+                            min_x: 30.0,
+                            min_y: -50.0,
+                            width: 100.0,
+                            height: 30.0,
+                        },
+                        as_attribute: "geometry",
+                        relative: None,
+                        source_point: None,
+                        target_point: None,
+                        intermediate_points: [],
+                        flip_rotation: FlipRotation {
+                            flip_h: None,
+                            flip_v: None,
+                            legacy_anchor_points: None,
+                            rotation: None,
+                        },
+                    },
+                    white_space: Some(
+                        "wrap",
+                    ),
+                    rounded: None,
+                    fill_color: Some(
+                        "none",
+                    ),
+                    stroke_color: Some(
+                        "none",
+                    ),
+                    stroke_width: None,
+                    opacity: None,
+                    text_format: TextFormat {
+                        font_size: Some(
+                            10,
+                        ),
+                        font_color: Some(
+                            "#FF9900",
+                        ),
+                    },
+                    vertex: 1,
+                    poly_coords: [],
+                },
+            ),
+            Object(
+                Object {
+                    base: DiagramBase {
+                        base: XMLBase {
+                            id: "tsmcN28/rupolym-annotate-4",
+                            xml_class: "xml_tag",
+                            xml_parent: Some(
+                                "layer-annotate",
+                            ),
+                            tag: None,
+                            tooltip: None,
+                            visible: None,
+                            value: Some(
+                                "cdsParam(7)",
+                            ),
+                            group_geometry: None,
+                        },
+                        style_attributes: [
+                            "html",
+                            "whiteSpace",
+                            "rounded",
+                            "fillColor",
+                            "strokeColor",
+                            "opacity",
+                            "fontColor",
+                            "fontSize",
+                        ],
+                        page: None,
+                        base_style: None,
+                        style_properties: {
+                            "whiteSpace": "wrap",
+                            "fillColor": "none",
+                            "strokeColor": "none",
+                            "fontColor": "#FF9900",
+                            "fontSize": "10",
+                        },
+                    },
+                    geometry: Geometry {
+                        bounding_box: BoundingBox {
+                            min_x: 17.5,
+                            min_y: 102.49999999999999,
+                            width: 100.0,
+                            height: 30.0,
+                        },
+                        as_attribute: "geometry",
+                        relative: None,
+                        source_point: None,
+                        target_point: None,
+                        intermediate_points: [],
+                        flip_rotation: FlipRotation {
+                            flip_h: None,
+                            flip_v: None,
+                            legacy_anchor_points: None,
+                            rotation: None,
+                        },
+                    },
+                    white_space: Some(
+                        "wrap",
+                    ),
+                    rounded: None,
+                    fill_color: Some(
+                        "none",
+                    ),
+                    stroke_color: Some(
+                        "none",
+                    ),
+                    stroke_width: None,
+                    opacity: None,
+                    text_format: TextFormat {
+                        font_size: Some(
+                            10,
+                        ),
+                        font_color: Some(
+                            "#FF9900",
+                        ),
+                    },
+                    vertex: 1,
+                    poly_coords: [],
+                },
+            ),
+            Object(
+                Object {
+                    base: DiagramBase {
+                        base: XMLBase {
+                            id: "tsmcN28/rupolym-annotate-5",
+                            xml_class: "xml_tag",
+                            xml_parent: Some(
+                                "layer-annotate",
+                            ),
+                            tag: None,
+                            tooltip: None,
+                            visible: None,
+                            value: Some(
+                                "cdsParam(1)",
+                            ),
+                            group_geometry: None,
+                        },
+                        style_attributes: [
+                            "html",
+                            "whiteSpace",
+                            "rounded",
+                            "fillColor",
+                            "strokeColor",
+                            "opacity",
+                            "fontColor",
+                            "fontSize",
+                        ],
+                        page: None,
+                        base_style: None,
+                        style_properties: {
+                            "whiteSpace": "wrap",
+                            "fillColor": "none",
+                            "strokeColor": "none",
+                            "fontColor": "#FF9900",
+                            "fontSize": "10",
+                        },
+                    },
+                    geometry: Geometry {
+                        bounding_box: BoundingBox {
+                            min_x: 17.5,
+                            min_y: 10.0,
+                            width: 100.0,
+                            height: 30.0,
+                        },
+                        as_attribute: "geometry",
+                        relative: None,
+                        source_point: None,
+                        target_point: None,
+                        intermediate_points: [],
+                        flip_rotation: FlipRotation {
+                            flip_h: None,
+                            flip_v: None,
+                            legacy_anchor_points: None,
+                            rotation: None,
+                        },
+                    },
+                    white_space: Some(
+                        "wrap",
+                    ),
+                    rounded: None,
+                    fill_color: Some(
+                        "none",
+                    ),
+                    stroke_color: Some(
+                        "none",
+                    ),
+                    stroke_width: None,
+                    opacity: None,
+                    text_format: TextFormat {
+                        font_size: Some(
+                            10,
+                        ),
+                        font_color: Some(
+                            "#FF9900",
+                        ),
+                    },
+                    vertex: 1,
+                    poly_coords: [],
+                },
+            ),
+            Object(
+                Object {
+                    base: DiagramBase {
+                        base: XMLBase {
+                            id: "tsmcN28/rupolym-annotate-6",
+                            xml_class: "xml_tag",
+                            xml_parent: Some(
+                                "layer-annotate",
+                            ),
+                            tag: None,
+                            tooltip: None,
+                            visible: None,
+                            value: Some(
+                                "cdsParam(8)",
+                            ),
+                            group_geometry: None,
+                        },
+                        style_attributes: [
+                            "html",
+                            "whiteSpace",
+                            "rounded",
+                            "fillColor",
+                            "strokeColor",
+                            "opacity",
+                            "fontColor",
+                            "fontSize",
+                        ],
+                        page: None,
+                        base_style: None,
+                        style_properties: {
+                            "whiteSpace": "wrap",
+                            "fillColor": "none",
+                            "strokeColor": "none",
+                            "fontColor": "#FF9900",
+                            "fontSize": "10",
+                        },
+                    },
+                    geometry: Geometry {
+                        bounding_box: BoundingBox {
+                            min_x: 17.5,
+                            min_y: 117.5,
+                            width: 100.0,
+                            height: 30.0,
+                        },
+                        as_attribute: "geometry",
+                        relative: None,
+                        source_point: None,
+                        target_point: None,
+                        intermediate_points: [],
+                        flip_rotation: FlipRotation {
+                            flip_h: None,
+                            flip_v: None,
+                            legacy_anchor_points: None,
+                            rotation: None,
+                        },
+                    },
+                    white_space: Some(
+                        "wrap",
+                    ),
+                    rounded: None,
+                    fill_color: Some(
+                        "none",
+                    ),
+                    stroke_color: Some(
+                        "none",
+                    ),
+                    stroke_width: None,
+                    opacity: None,
+                    text_format: TextFormat {
+                        font_size: Some(
+                            10,
+                        ),
+                        font_color: Some(
+                            "#FF9900",
+                        ),
+                    },
+                    vertex: 1,
+                    poly_coords: [],
+                },
+            ),
+            Object(
+                Object {
+                    base: DiagramBase {
+                        base: XMLBase {
+                            id: "tsmcN28/rupolym-annotate-7",
+                            xml_class: "xml_tag",
+                            xml_parent: Some(
+                                "layer-annotate",
+                            ),
+                            tag: None,
+                            tooltip: None,
+                            visible: None,
+                            value: Some(
+                                "cdsParam(5)",
+                            ),
+                            group_geometry: None,
+                        },
+                        style_attributes: [
+                            "html",
+                            "whiteSpace",
+                            "rounded",
+                            "fillColor",
+                            "strokeColor",
+                            "opacity",
+                            "fontColor",
+                            "fontSize",
+                        ],
+                        page: None,
+                        base_style: None,
+                        style_properties: {
+                            "whiteSpace": "wrap",
+                            "fillColor": "none",
+                            "strokeColor": "none",
+                            "fontColor": "#FF9900",
+                            "fontSize": "10",
+                        },
+                    },
+                    geometry: Geometry {
+                        bounding_box: BoundingBox {
+                            min_x: 17.5,
+                            min_y: 72.5,
+                            width: 100.0,
+                            height: 30.0,
+                        },
+                        as_attribute: "geometry",
+                        relative: None,
+                        source_point: None,
+                        target_point: None,
+                        intermediate_points: [],
+                        flip_rotation: FlipRotation {
+                            flip_h: None,
+                            flip_v: None,
+                            legacy_anchor_points: None,
+                            rotation: None,
+                        },
+                    },
+                    white_space: Some(
+                        "wrap",
+                    ),
+                    rounded: None,
+                    fill_color: Some(
+                        "none",
+                    ),
+                    stroke_color: Some(
+                        "none",
+                    ),
+                    stroke_width: None,
+                    opacity: None,
+                    text_format: TextFormat {
+                        font_size: Some(
+                            10,
+                        ),
+                        font_color: Some(
+                            "#FF9900",
+                        ),
+                    },
+                    vertex: 1,
+                    poly_coords: [],
+                },
+            ),
+            Object(
+                Object {
+                    base: DiagramBase {
+                        base: XMLBase {
+                            id: "tsmcN28/rupolym-annotate-8",
+                            xml_class: "xml_tag",
+                            xml_parent: Some(
+                                "layer-annotate",
+                            ),
+                            tag: None,
+                            tooltip: None,
+                            visible: None,
+                            value: Some(
+                                "cdsParam(4)",
+                            ),
+                            group_geometry: None,
+                        },
+                        style_attributes: [
+                            "html",
+                            "whiteSpace",
+                            "rounded",
+                            "fillColor",
+                            "strokeColor",
+                            "opacity",
+                            "fontColor",
+                            "fontSize",
+                        ],
+                        page: None,
+                        base_style: None,
+                        style_properties: {
+                            "whiteSpace": "wrap",
+                            "fillColor": "none",
+                            "strokeColor": "none",
+                            "fontColor": "#FF9900",
+                            "fontSize": "10",
+                        },
+                    },
+                    geometry: Geometry {
+                        bounding_box: BoundingBox {
+                            min_x: 17.5,
+                            min_y: 57.49999999999999,
+                            width: 100.0,
+                            height: 30.0,
+                        },
+                        as_attribute: "geometry",
+                        relative: None,
+                        source_point: None,
+                        target_point: None,
+                        intermediate_points: [],
+                        flip_rotation: FlipRotation {
+                            flip_h: None,
+                            flip_v: None,
+                            legacy_anchor_points: None,
+                            rotation: None,
+                        },
+                    },
+                    white_space: Some(
+                        "wrap",
+                    ),
+                    rounded: None,
+                    fill_color: Some(
+                        "none",
+                    ),
+                    stroke_color: Some(
+                        "none",
+                    ),
+                    stroke_width: None,
+                    opacity: None,
+                    text_format: TextFormat {
+                        font_size: Some(
+                            10,
+                        ),
+                        font_color: Some(
+                            "#FF9900",
+                        ),
+                    },
+                    vertex: 1,
+                    poly_coords: [],
+                },
+            ),
+            Object(
+                Object {
+                    base: DiagramBase {
+                        base: XMLBase {
+                            id: "tsmcN28/rupolym-annotate-9",
+                            xml_class: "xml_tag",
+                            xml_parent: Some(
+                                "layer-annotate",
+                            ),
+                            tag: None,
+                            tooltip: None,
+                            visible: None,
+                            value: Some(
+                                "cdsParam(6)",
+                            ),
+                            group_geometry: None,
+                        },
+                        style_attributes: [
+                            "html",
+                            "whiteSpace",
+                            "rounded",
+                            "fillColor",
+                            "strokeColor",
+                            "opacity",
+                            "fontColor",
+                            "fontSize",
+                        ],
+                        page: None,
+                        base_style: None,
+                        style_properties: {
+                            "whiteSpace": "wrap",
+                            "fillColor": "none",
+                            "strokeColor": "none",
+                            "fontColor": "#FF9900",
+                            "fontSize": "10",
+                        },
+                    },
+                    geometry: Geometry {
+                        bounding_box: BoundingBox {
+                            min_x: 17.5,
+                            min_y: 87.5,
+                            width: 100.0,
+                            height: 30.0,
+                        },
+                        as_attribute: "geometry",
+                        relative: None,
+                        source_point: None,
+                        target_point: None,
+                        intermediate_points: [],
+                        flip_rotation: FlipRotation {
+                            flip_h: None,
+                            flip_v: None,
+                            legacy_anchor_points: None,
+                            rotation: None,
+                        },
+                    },
+                    white_space: Some(
+                        "wrap",
+                    ),
+                    rounded: None,
+                    fill_color: Some(
+                        "none",
+                    ),
+                    stroke_color: Some(
+                        "none",
+                    ),
+                    stroke_width: None,
+                    opacity: None,
+                    text_format: TextFormat {
+                        font_size: Some(
+                            10,
+                        ),
+                        font_color: Some(
+                            "#FF9900",
+                        ),
+                    },
+                    vertex: 1,
+                    poly_coords: [],
+                },
+            ),
+            Object(
+                Object {
+                    base: DiagramBase {
+                        base: XMLBase {
+                            id: "tsmcN28/rupolym-annotate-10",
+                            xml_class: "xml_tag",
+                            xml_parent: Some(
+                                "layer-annotate",
+                            ),
+                            tag: None,
+                            tooltip: None,
+                            visible: None,
+                            value: Some(
+                                "cdsParam(3)",
+                            ),
+                            group_geometry: None,
+                        },
+                        style_attributes: [
+                            "html",
+                            "whiteSpace",
+                            "rounded",
+                            "fillColor",
+                            "strokeColor",
+                            "opacity",
+                            "fontColor",
+                            "fontSize",
+                        ],
+                        page: None,
+                        base_style: None,
+                        style_properties: {
+                            "whiteSpace": "wrap",
+                            "fillColor": "none",
+                            "strokeColor": "none",
+                            "fontColor": "#FF9900",
+                            "fontSize": "10",
+                        },
+                    },
+                    geometry: Geometry {
+                        bounding_box: BoundingBox {
+                            min_x: 17.5,
+                            min_y: 42.5,
+                            width: 100.0,
+                            height: 30.0,
+                        },
+                        as_attribute: "geometry",
+                        relative: None,
+                        source_point: None,
+                        target_point: None,
+                        intermediate_points: [],
+                        flip_rotation: FlipRotation {
+                            flip_h: None,
+                            flip_v: None,
+                            legacy_anchor_points: None,
+                            rotation: None,
+                        },
+                    },
+                    white_space: Some(
+                        "wrap",
+                    ),
+                    rounded: None,
+                    fill_color: Some(
+                        "none",
+                    ),
+                    stroke_color: Some(
+                        "none",
+                    ),
+                    stroke_width: None,
+                    opacity: None,
+                    text_format: TextFormat {
+                        font_size: Some(
+                            10,
+                        ),
+                        font_color: Some(
+                            "#FF9900",
+                        ),
+                    },
+                    vertex: 1,
+                    poly_coords: [],
+                },
+            ),
+            Object(
+                Object {
+                    base: DiagramBase {
+                        base: XMLBase {
+                            id: "tsmcN28/rupolym-annotate-11",
+                            xml_class: "xml_tag",
+                            xml_parent: Some(
+                                "layer-annotate",
+                            ),
+                            tag: None,
+                            tooltip: None,
+                            visible: None,
+                            value: Some(
+                                "cdsParam(2)",
+                            ),
+                            group_geometry: None,
+                        },
+                        style_attributes: [
+                            "html",
+                            "whiteSpace",
+                            "rounded",
+                            "fillColor",
+                            "strokeColor",
+                            "opacity",
+                            "fontColor",
+                            "fontSize",
+                        ],
+                        page: None,
+                        base_style: None,
+                        style_properties: {
+                            "whiteSpace": "wrap",
+                            "fillColor": "none",
+                            "strokeColor": "none",
+                            "fontColor": "#FF9900",
+                            "fontSize": "10",
+                        },
+                    },
+                    geometry: Geometry {
+                        bounding_box: BoundingBox {
+                            min_x: 17.5,
+                            min_y: 26.25,
+                            width: 100.0,
+                            height: 30.0,
+                        },
+                        as_attribute: "geometry",
+                        relative: None,
+                        source_point: None,
+                        target_point: None,
+                        intermediate_points: [],
+                        flip_rotation: FlipRotation {
+                            flip_h: None,
+                            flip_v: None,
+                            legacy_anchor_points: None,
+                            rotation: None,
+                        },
+                    },
+                    white_space: Some(
+                        "wrap",
+                    ),
+                    rounded: None,
+                    fill_color: Some(
+                        "none",
+                    ),
+                    stroke_color: Some(
+                        "none",
+                    ),
+                    stroke_width: None,
+                    opacity: None,
+                    text_format: TextFormat {
+                        font_size: Some(
+                            10,
+                        ),
+                        font_color: Some(
+                            "#FF9900",
+                        ),
+                    },
+                    vertex: 1,
+                    poly_coords: [],
+                },
+            ),
+            Object(
+                Object {
+                    base: DiagramBase {
+                        base: XMLBase {
+                            id: "tsmcN28/rupolym-annotate-12",
+                            xml_class: "xml_tag",
+                            xml_parent: Some(
+                                "layer-annotate",
+                            ),
+                            tag: None,
+                            tooltip: None,
+                            visible: None,
+                            value: Some(
+                                "cdsTerm(&quot;MINUS&quot;)",
+                            ),
+                            group_geometry: None,
+                        },
+                        style_attributes: [
+                            "html",
+                            "whiteSpace",
+                            "rounded",
+                            "fillColor",
+                            "strokeColor",
+                            "opacity",
+                            "fontColor",
+                            "fontSize",
+                        ],
+                        page: None,
+                        base_style: None,
+                        style_properties: {
+                            "whiteSpace": "wrap",
+                            "fillColor": "none",
+                            "strokeColor": "none",
+                            "fontColor": "#FF9900",
+                            "fontSize": "10",
+                        },
+                    },
+                    geometry: Geometry {
+                        bounding_box: BoundingBox {
+                            min_x: -12.5,
+                            min_y: 75.0,
+                            width: 100.0,
+                            height: 30.0,
+                        },
+                        as_attribute: "geometry",
+                        relative: None,
+                        source_point: None,
+                        target_point: None,
+                        intermediate_points: [],
+                        flip_rotation: FlipRotation {
+                            flip_h: None,
+                            flip_v: None,
+                            legacy_anchor_points: None,
+                            rotation: None,
+                        },
+                    },
+                    white_space: Some(
+                        "wrap",
+                    ),
+                    rounded: None,
+                    fill_color: Some(
+                        "none",
+                    ),
+                    stroke_color: Some(
+                        "none",
+                    ),
+                    stroke_width: None,
+                    opacity: None,
+                    text_format: TextFormat {
+                        font_size: Some(
+                            10,
+                        ),
+                        font_color: Some(
+                            "#FF9900",
+                        ),
+                    },
+                    vertex: 1,
+                    poly_coords: [],
+                },
+            ),
+            Object(
+                Object {
+                    base: DiagramBase {
+                        base: XMLBase {
+                            id: "tsmcN28/rupolym-annotate-13",
+                            xml_class: "xml_tag",
+                            xml_parent: Some(
+                                "layer-annotate",
+                            ),
+                            tag: None,
+                            tooltip: None,
+                            visible: None,
+                            value: Some(
+                                "cdsTerm(&quot;PLUS&quot;)",
+                            ),
+                            group_geometry: None,
+                        },
+                        style_attributes: [
+                            "html",
+                            "whiteSpace",
+                            "rounded",
+                            "fillColor",
+                            "strokeColor",
+                            "opacity",
+                            "fontColor",
+                            "fontSize",
+                        ],
+                        page: None,
+                        base_style: None,
+                        style_properties: {
+                            "whiteSpace": "wrap",
+                            "fillColor": "none",
+                            "strokeColor": "none",
+                            "fontColor": "#FF9900",
+                            "fontSize": "10",
+                        },
+                    },
+                    geometry: Geometry {
+                        bounding_box: BoundingBox {
+                            min_x: -12.5,
+                            min_y: 12.5,
+                            width: 100.0,
+                            height: 30.0,
+                        },
+                        as_attribute: "geometry",
+                        relative: None,
+                        source_point: None,
+                        target_point: None,
+                        intermediate_points: [],
+                        flip_rotation: FlipRotation {
+                            flip_h: None,
+                            flip_v: None,
+                            legacy_anchor_points: None,
+                            rotation: None,
+                        },
+                    },
+                    white_space: Some(
+                        "wrap",
+                    ),
+                    rounded: None,
+                    fill_color: Some(
+                        "none",
+                    ),
+                    stroke_color: Some(
+                        "none",
+                    ),
+                    stroke_width: None,
+                    opacity: None,
+                    text_format: TextFormat {
+                        font_size: Some(
+                            10,
+                        ),
+                        font_color: Some(
+                            "#FF9900",
+                        ),
+                    },
+                    vertex: 1,
+                    poly_coords: [],
+                },
+            ),
+            Object(
+                Object {
+                    base: DiagramBase {
+                        base: XMLBase {
+                            id: "tsmcN28/rupolym-pin-14",
+                            xml_class: "xml_tag",
+                            xml_parent: Some(
+                                "layer-pin",
+                            ),
+                            tag: None,
+                            tooltip: None,
+                            visible: None,
+                            value: Some(
+                                "",
+                            ),
+                            group_geometry: None,
+                        },
+                        style_attributes: [
+                            "html",
+                            "whiteSpace",
+                            "rounded",
+                            "fillColor",
+                            "strokeColor",
+                            "opacity",
+                            "strokeWidth",
+                        ],
+                        page: None,
+                        base_style: None,
+                        style_properties: {
+                            "whiteSpace": "wrap",
+                            "fillColor": "#FF0000",
+                            "strokeColor": "none",
+                            "strokeWidth": "2",
+                        },
+                    },
+                    geometry: Geometry {
+                        bounding_box: BoundingBox {
+                            min_x: -2.5,
+                            min_y: -2.5,
+                            width: 5.0,
+                            height: 5.0,
+                        },
+                        as_attribute: "geometry",
+                        relative: None,
+                        source_point: None,
+                        target_point: None,
+                        intermediate_points: [],
+                        flip_rotation: FlipRotation {
+                            flip_h: None,
+                            flip_v: None,
+                            legacy_anchor_points: None,
+                            rotation: None,
+                        },
+                    },
+                    white_space: Some(
+                        "wrap",
+                    ),
+                    rounded: None,
+                    fill_color: Some(
+                        "#FF0000",
+                    ),
+                    stroke_color: Some(
+                        "none",
+                    ),
+                    stroke_width: Some(
+                        2.0,
+                    ),
+                    opacity: None,
+                    text_format: TextFormat {
+                        font_size: None,
+                        font_color: None,
+                    },
+                    vertex: 1,
+                    poly_coords: [],
+                },
+            ),
+            Object(
+                Object {
+                    base: DiagramBase {
+                        base: XMLBase {
+                            id: "tsmcN28/rupolym-pin-15",
+                            xml_class: "xml_tag",
+                            xml_parent: Some(
+                                "layer-pin",
+                            ),
+                            tag: None,
+                            tooltip: None,
+                            visible: None,
+                            value: Some(
+                                "",
+                            ),
+                            group_geometry: None,
+                        },
+                        style_attributes: [
+                            "html",
+                            "whiteSpace",
+                            "rounded",
+                            "fillColor",
+                            "strokeColor",
+                            "opacity",
+                            "strokeWidth",
+                        ],
+                        page: None,
+                        base_style: None,
+                        style_properties: {
+                            "whiteSpace": "wrap",
+                            "fillColor": "#FF0000",
+                            "strokeColor": "none",
+                            "strokeWidth": "2",
+                        },
+                    },
+                    geometry: Geometry {
+                        bounding_box: BoundingBox {
+                            min_x: -2.5,
+                            min_y: 72.5,
+                            width: 5.0,
+                            height: 5.000000000000004,
+                        },
+                        as_attribute: "geometry",
+                        relative: None,
+                        source_point: None,
+                        target_point: None,
+                        intermediate_points: [],
+                        flip_rotation: FlipRotation {
+                            flip_h: None,
+                            flip_v: None,
+                            legacy_anchor_points: None,
+                            rotation: None,
+                        },
+                    },
+                    white_space: Some(
+                        "wrap",
+                    ),
+                    rounded: None,
+                    fill_color: Some(
+                        "#FF0000",
+                    ),
+                    stroke_color: Some(
+                        "none",
+                    ),
+                    stroke_width: Some(
+                        2.0,
+                    ),
+                    opacity: None,
+                    text_format: TextFormat {
+                        font_size: None,
+                        font_color: None,
+                    },
+                    vertex: 1,
+                    poly_coords: [],
+                },
+            ),
+        ],
+        origin_bounding_box: BoundingBox {
+            min_x: -25.0,
+            min_y: -50.0,
+            width: 155.0,
+            height: 197.5,
+        },
+    },
+}

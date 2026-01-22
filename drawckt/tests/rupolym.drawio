@@ -1,0 +1,75 @@
+<mxfile host="embed.diagrams.net" agent="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36" version="29.3.3">
+  <diagram name="tsmcN28/rupolym" id="tsmcN28/rupolym">
+    <mxGraphModel dx="1253" dy="1411" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="850" pageHeight="1100" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="layer-wire" parent="0" value="wire" />
+        <mxCell id="layer-instance" parent="0" value="instance" />
+        <mxCell id="tsmcN28/rupolym-instance-0" parent="layer-instance" style="whiteSpace=wrap;fillColor=none;strokeColor=#0000FF;strokeWidth=1;" value="" vertex="1">
+          <mxGeometry height="75" width="50" x="-25" as="geometry" />
+        </mxCell>
+        <mxCell id="layer-device" parent="0" value="device" />
+        <mxCell id="tsmcN28/rupolym-device-1" parent="layer-device" style="whiteSpace=wrap;fillColor=none;strokeColor=none;fontColor=#FF0000;fontSize=16;" value="[@cellName]" vertex="1">
+          <mxGeometry height="30" width="100" x="-12.5" y="-3.75" as="geometry" />
+        </mxCell>
+        <mxCell id="tsmcN28/rupolym-device-2" edge="1" parent="layer-device" style="rounded=0;strokeColor=#00FF00;strokeWidth=2;endArrow=none;" value="">
+          <mxGeometry height="75" relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint y="60" />
+              <mxPoint x="-12.5" y="56.25" />
+              <mxPoint x="12.5" y="48.75" />
+              <mxPoint x="-12.5" y="41.25" />
+              <mxPoint x="12.5" y="33.75" />
+              <mxPoint x="-12.5" y="26.25" />
+              <mxPoint x="12.5" y="18.75" />
+              <mxPoint y="15" />
+            </Array>
+            <mxPoint y="75" as="sourcePoint" />
+            <mxPoint as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="layer-annotate" parent="0" value="annotate" />
+        <mxCell id="tsmcN28/rupolym-annotate-3" parent="layer-annotate" style="whiteSpace=wrap;fillColor=none;strokeColor=none;fontColor=#FF9900;fontSize=10;" value="cdsName()" vertex="1">
+          <mxGeometry height="30" width="100" x="30" y="-50" as="geometry" />
+        </mxCell>
+        <mxCell id="tsmcN28/rupolym-annotate-4" parent="layer-annotate" style="whiteSpace=wrap;fillColor=none;strokeColor=none;fontColor=#FF9900;fontSize=10;" value="cdsParam(7)" vertex="1">
+          <mxGeometry height="30" width="100" x="17.5" y="102.49999999999999" as="geometry" />
+        </mxCell>
+        <mxCell id="tsmcN28/rupolym-annotate-5" parent="layer-annotate" style="whiteSpace=wrap;fillColor=none;strokeColor=none;fontColor=#FF9900;fontSize=10;" value="cdsParam(1)" vertex="1">
+          <mxGeometry height="30" width="100" x="17.5" y="10" as="geometry" />
+        </mxCell>
+        <mxCell id="tsmcN28/rupolym-annotate-6" parent="layer-annotate" style="whiteSpace=wrap;fillColor=none;strokeColor=none;fontColor=#FF9900;fontSize=10;" value="cdsParam(8)" vertex="1">
+          <mxGeometry height="30" width="100" x="17.5" y="117.5" as="geometry" />
+        </mxCell>
+        <mxCell id="tsmcN28/rupolym-annotate-7" parent="layer-annotate" style="whiteSpace=wrap;fillColor=none;strokeColor=none;fontColor=#FF9900;fontSize=10;" value="cdsParam(5)" vertex="1">
+          <mxGeometry height="30" width="100" x="17.5" y="72.5" as="geometry" />
+        </mxCell>
+        <mxCell id="tsmcN28/rupolym-annotate-8" parent="layer-annotate" style="whiteSpace=wrap;fillColor=none;strokeColor=none;fontColor=#FF9900;fontSize=10;" value="cdsParam(4)" vertex="1">
+          <mxGeometry height="30" width="100" x="17.5" y="57.49999999999999" as="geometry" />
+        </mxCell>
+        <mxCell id="tsmcN28/rupolym-annotate-9" parent="layer-annotate" style="whiteSpace=wrap;fillColor=none;strokeColor=none;fontColor=#FF9900;fontSize=10;" value="cdsParam(6)" vertex="1">
+          <mxGeometry height="30" width="100" x="17.5" y="87.5" as="geometry" />
+        </mxCell>
+        <mxCell id="tsmcN28/rupolym-annotate-10" parent="layer-annotate" style="whiteSpace=wrap;fillColor=none;strokeColor=none;fontColor=#FF9900;fontSize=10;" value="cdsParam(3)" vertex="1">
+          <mxGeometry height="30" width="100" x="17.5" y="42.5" as="geometry" />
+        </mxCell>
+        <mxCell id="tsmcN28/rupolym-annotate-11" parent="layer-annotate" style="whiteSpace=wrap;fillColor=none;strokeColor=none;fontColor=#FF9900;fontSize=10;" value="cdsParam(2)" vertex="1">
+          <mxGeometry height="30" width="100" x="17.5" y="26.25" as="geometry" />
+        </mxCell>
+        <mxCell id="tsmcN28/rupolym-annotate-12" parent="layer-annotate" style="whiteSpace=wrap;fillColor=none;strokeColor=none;fontColor=#FF9900;fontSize=10;" value="cdsTerm(&quot;MINUS&quot;)" vertex="1">
+          <mxGeometry height="30" width="100" x="-12.5" y="75" as="geometry" />
+        </mxCell>
+        <mxCell id="tsmcN28/rupolym-annotate-13" parent="layer-annotate" style="whiteSpace=wrap;fillColor=none;strokeColor=none;fontColor=#FF9900;fontSize=10;" value="cdsTerm(&quot;PLUS&quot;)" vertex="1">
+          <mxGeometry height="30" width="100" x="-12.5" y="12.5" as="geometry" />
+        </mxCell>
+        <mxCell id="layer-pin" parent="0" value="pin" />
+        <mxCell id="tsmcN28/rupolym-pin-14" parent="layer-pin" style="whiteSpace=wrap;fillColor=#FF0000;strokeColor=none;strokeWidth=2;" value="" vertex="1">
+          <mxGeometry height="5" width="5" x="-2.5" y="-2.5" as="geometry" />
+        </mxCell>
+        <mxCell id="tsmcN28/rupolym-pin-15" parent="layer-pin" style="whiteSpace=wrap;fillColor=#FF0000;strokeColor=none;strokeWidth=2;" value="" vertex="1">
+          <mxGeometry height="5.000000000000004" width="5" x="-2.5" y="72.5" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

@@ -1,0 +1,26 @@
+[package]
+name = "drawckt"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+drawrs = { path = "../drawrs" }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+quick-xml = { version = "0.31", features = ["serialize"] }
+uuid = { version = "1.0", features = ["v4"] }
+thiserror = "1.0"
+log = "0.4"
+env_logger = "0.11"
+indexmap = "2.0"
+
+[dev-dependencies]
+insta = "1.0"
+
+[[bin]]
+name = "render_symbols"
+path = "src/bin/render_symbols.rs"
+
+[[bin]]
+name = "render_schematic"
+path = "src/bin/render_schematic.rs"

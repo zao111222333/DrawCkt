@@ -1,0 +1,52 @@
+/* Scroll container wrapper */
+.schematic-view-scroll-container {
+  flex: 1;
+  overflow: auto;
+  position: relative;
+  background: #ffffff;
+  min-height: 0;
+  width: 100%;
+  height: 100%;
+  -webkit-overflow-scrolling: touch;
+}
+
+.schematic-view {
+  flex: 1;
+  overflow: visible;
+  padding: 0;
+  margin: 0;
+  background: #ffffff;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  position: relative;
+}
+
+.schematic-view.empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 400px;
+}
+
+.empty-message {
+  color: #6c757d;
+  font-size: 15px;
+  text-align: center;
+  font-weight: 400;
+}
+
+.schematic-view .mxgraph {
+  background: #ffffff;
+  border: none;
+  border-radius: 0;
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  flex: 1;
+  min-height: 0;
+  box-shadow: none;
+  position: relative;
+}
+
