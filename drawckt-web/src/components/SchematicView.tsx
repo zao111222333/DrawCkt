@@ -204,16 +204,18 @@ const SchematicView: React.FC<SchematicViewProps> = ({ ready, refreshKey, onEdit
                   undoBtn.title = 'Undo';
                   undoBtn.disabled = !schematicHistory.canUndo;
                   undoBtn.onclick = async () => {
-                    if (schematicHistory.canUndo) {
-                      try {
-                        await wasmAPI.undoSchematic();
-                        await updateSchematicHistory();
-                        if (onSchematicUpdated) {
-                          onSchematicUpdated();
-                        }
-                      } catch (error) {
-                        console.error('Failed to undo schematic:', error);
+                    // Don't check closure value, check button state instead
+                    if (undoBtn.disabled) {
+                      return;
+                    }
+                    try {
+                      await wasmAPI.undoSchematic();
+                      await updateSchematicHistory();
+                      if (onSchematicUpdated) {
+                        onSchematicUpdated();
                       }
+                    } catch (error) {
+                      console.error('Failed to undo schematic:', error);
                     }
                   };
                   
@@ -224,16 +226,18 @@ const SchematicView: React.FC<SchematicViewProps> = ({ ready, refreshKey, onEdit
                   redoBtn.title = 'Redo';
                   redoBtn.disabled = !schematicHistory.canRedo;
                   redoBtn.onclick = async () => {
-                    if (schematicHistory.canRedo) {
-                      try {
-                        await wasmAPI.redoSchematic();
-                        await updateSchematicHistory();
-                        if (onSchematicUpdated) {
-                          onSchematicUpdated();
-                        }
-                      } catch (error) {
-                        console.error('Failed to redo schematic:', error);
+                    // Don't check closure value, check button state instead
+                    if (redoBtn.disabled) {
+                      return;
+                    }
+                    try {
+                      await wasmAPI.redoSchematic();
+                      await updateSchematicHistory();
+                      if (onSchematicUpdated) {
+                        onSchematicUpdated();
                       }
+                    } catch (error) {
+                      console.error('Failed to redo schematic:', error);
                     }
                   };
                   
@@ -397,6 +401,24 @@ const SchematicView: React.FC<SchematicViewProps> = ({ ready, refreshKey, onEdit
       updateSchematicHistory();
     }
   }, [ready, refreshKey]);
+
+  // Remove schematic-toolbar-fixed when schematic-view becomes empty
+  useEffect(() => {
+    if (!ready) {
+      // When ready is false, schematic-view has 'empty' class
+      // Remove any existing toolbar wrappers and fixed toolbars
+      const toolbarWrappers = document.querySelectorAll('.schematic-toolbar-wrapper');
+      toolbarWrappers.forEach((wrapper) => {
+        wrapper.remove();
+      });
+      
+      // Also remove schematic-toolbar-fixed class from any remaining toolbars
+      const fixedToolbars = document.querySelectorAll('.schematic-toolbar-fixed');
+      fixedToolbars.forEach((toolbar) => {
+        toolbar.classList.remove('schematic-toolbar-fixed');
+      });
+    }
+  }, [ready]);
 
 
   if (!ready) {

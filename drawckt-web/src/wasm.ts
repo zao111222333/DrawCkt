@@ -20,6 +20,7 @@ export interface ProcessResult {
   success: boolean;
   symbol_count: number;
   schematic_rendered: boolean;
+  schematic_restored?: boolean;
   message?: string;
 }
 
@@ -65,6 +66,50 @@ export const wasmAPI = {
         };
       } else {
         processResult = result as unknown as ProcessResult;
+      }
+      return processResult;
+    } catch (error) {
+      const msg =
+        error instanceof Error
+          ? error.message
+          : typeof error === 'string'
+            ? error
+            : JSON.stringify(error);
+      // Keep the Rust/wasm error message as-is so UI can display it.
+      throw new Error(msg);
+    }
+  },
+
+  async processSchematicZip(base64Zip: string, filename?: string): Promise<ProcessResult> {
+    await initWasm();
+    try {
+      let result;
+      // @ts-ignore - process_schematic_zip functions are defined in Rust but TypeScript types may not be updated yet
+      if (filename) {
+        result = (wasm as any).process_schematic_zip_with_filename(base64Zip, filename);
+      } else {
+        result = (wasm as any).process_schematic_zip(base64Zip);
+      }
+      // serde_wasm_bindgen::to_value returns a JavaScript object or Map
+      // Convert Map to plain object if needed
+      let processResult: ProcessResult;
+      if (result instanceof Map) {
+        processResult = {
+          success: result.get('success') ?? false,
+          symbol_count: result.get('symbol_count') ?? 0,
+          schematic_rendered: result.get('schematic_restored') ?? false,
+          schematic_restored: result.get('schematic_restored') ?? false,
+          message: result.get('message') ?? undefined,
+        };
+      } else {
+        const obj = result as any;
+        processResult = {
+          success: Boolean(obj.success ?? false),
+          symbol_count: Number(obj.symbol_count ?? 0),
+          schematic_rendered: Boolean(obj.schematic_restored ?? false),
+          schematic_restored: Boolean(obj.schematic_restored ?? false),
+          message: obj.message ?? undefined,
+        };
       }
       return processResult;
     } catch (error) {
@@ -169,6 +214,18 @@ export const wasmAPI = {
       return result as unknown as LayerStyles;
     } catch (error) {
       throw new Error(`Failed to get layer styles: ${error}`);
+    }
+  },
+
+  async getDefaultLayerStyles(): Promise<LayerStyles> {
+    await initWasm();
+    try {
+      // @ts-ignore - get_default_layer_styles is defined in Rust but TypeScript types may not be updated yet
+      const result = (wasm as any).get_default_layer_styles();
+      // serde_wasm_bindgen::to_value returns a JavaScript object
+      return result as unknown as LayerStyles;
+    } catch (error) {
+      throw new Error(`Failed to get default layer styles: ${error}`);
     }
   },
 

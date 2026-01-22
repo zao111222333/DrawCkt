@@ -27,3 +27,6 @@ phf = { version = "0.11", features = ["macros"] }
 [dependencies.getrandom]
 version = "0.2"
 features = ["js"]
+
+[build-dependencies]
+base64 = "0.21"

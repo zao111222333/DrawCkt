@@ -172,7 +172,7 @@ impl BinaryTreeDiagram {
             return Err(DrawrsError::InvalidRootDict);
         }
 
-        let mut diagram = Self::new();
+        let diagram = Self::new();
         // Simplified implementation - would need recursive parsing
         Ok(diagram)
     }

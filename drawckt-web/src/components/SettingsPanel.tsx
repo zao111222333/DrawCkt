@@ -6,6 +6,7 @@ import './SettingsPanel.css';
 
 interface SettingsPanelProps {
   onSchematicUpload: (jsonContent: string, filename?: string) => Promise<ProcessResult>;
+  onSchematicZipUpload?: (base64Zip: string, filename?: string) => Promise<ProcessResult>;
   onSchematicClear?: () => void;
   layerStyles: LayerStyles | null;
   onLayerStylesUpdate: (styles: LayerStyles) => void;
@@ -15,6 +16,7 @@ interface SettingsPanelProps {
 
 const SettingsPanel: React.FC<SettingsPanelProps> = ({
   onSchematicUpload,
+  onSchematicZipUpload,
   onSchematicClear,
   layerStyles,
   onLayerStylesUpdate,
@@ -31,6 +33,7 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({
   const [demoList, setDemoList] = useState<Array<{ value: string; label: string }>>([
     { value: '', label: '-- Select a demo case --' },
   ]);
+  const [defaultLayerStyles, setDefaultLayerStyles] = useState<LayerStyles | null>(null);
 
   // Load demo list from WASM on mount
   useEffect(() => {
@@ -41,7 +44,7 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({
           { value: '', label: '-- Select a demo case --' },
           ...demos.map((name) => ({
             value: name,
-            label: name.replace(/\.json$/, ''),
+            label: name, // Keep extension in display
           })),
         ];
         setDemoList(demoOptions);
@@ -52,12 +55,38 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({
     loadDemoList();
   }, []);
 
+  // Load default layer styles from WASM on mount
+  useEffect(() => {
+    const loadDefaultLayerStyles = async () => {
+      try {
+        const defaultStyles = await wasmAPI.getDefaultLayerStyles();
+        setDefaultLayerStyles(defaultStyles);
+      } catch (error) {
+        console.error('Failed to load default layer styles:', error);
+      }
+    };
+    loadDefaultLayerStyles();
+  }, []);
+
   // Restore selectedDemo after key change to preserve selection state
   useEffect(() => {
     if (demoValueRef.current) {
       setSelectedDemo(demoValueRef.current);
     }
   }, [demoSelectKey]);
+
+  // Reset page title when uploadStatus is empty or error
+  useEffect(() => {
+    if (!uploadStatus || uploadStatus.startsWith('✗')) {
+      document.title = 'DrawCkt';
+    }
+  }, [uploadStatus]);
+
+  // Helper function to set page title
+  const setLoadedSuccess = (filename: string) => {
+    setUploadStatus(`✓ Loaded '${filename}'`);
+    document.title = `${filename} - DrawCkt`;
+  };
 
   const handleSchematicContent = async (content: string, filename: string) => {
     // Cancel any pending auto-clear so failures can stay visible.
@@ -68,14 +97,18 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({
 
     try {
       const result = await onSchematicUpload(content, filename);
-      const ok = Boolean((result as any)?.success ?? (result as any)?.schematic_rendered ?? false);
+      // Check both schematic_rendered and success to ensure UI updates
+      const ok = Boolean(
+        (result as any)?.success ?? 
+        (result as any)?.schematic_rendered ?? 
+        false
+      );
       if (!ok) {
         const msg = (result as any)?.message ? String((result as any).message) : 'Failed to process schematic';
         setUploadStatus(`✗ ${msg}`);
         return; // keep showing
       }
-
-      setUploadStatus(`✓ Loaded '${filename}.json'`);
+      setLoadedSuccess(`${filename}.json`);
       // Keep showing success status until a new file is uploaded
     } catch (error) {
       const msg =
@@ -90,8 +123,11 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({
   };
 
   const handleFile = (file: File) => {
-    if (!file.name.endsWith('.json')) {
-      setUploadStatus('✗ Please upload a .json file');
+    const isJson = file.name.endsWith('.json');
+    const isZip = file.name.endsWith('.zip');
+    
+    if (!isJson && !isZip) {
+      setUploadStatus('✗ Please upload a .json or .zip file');
       setTimeout(() => setUploadStatus(''), 3000);
       return;
     }
@@ -101,18 +137,70 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({
     setSelectedDemo('');
     setDemoSelectKey(prev => prev + 1);
 
-    const reader = new FileReader();
-    reader.onload = async (e) => {
-      const content = e.target?.result as string;
-      // Extract filename without extension
-      const filename = file.name.replace(/\.json$/, '');
-      await handleSchematicContent(content, filename);
-    };
-    reader.onerror = () => {
-      setUploadStatus('✗ Failed to read file');
-      setTimeout(() => setUploadStatus(''), 3000);
-    };
-    reader.readAsText(file);
+    if (isJson) {
+      const reader = new FileReader();
+      reader.onload = async (e) => {
+        const content = e.target?.result as string;
+        // Extract filename without extension
+        const filename = file.name.replace(/\.json$/, '');
+        await handleSchematicContent(content, filename);
+      };
+      reader.onerror = () => {
+        setUploadStatus('✗ Failed to read file');
+        setTimeout(() => setUploadStatus(''), 3000);
+      };
+      reader.readAsText(file);
+    } else if (isZip) {
+      const reader = new FileReader();
+      reader.onload = async (e) => {
+        try {
+          // Read file as ArrayBuffer and convert to base64
+          const arrayBuffer = e.target?.result as ArrayBuffer;
+          const bytes = new Uint8Array(arrayBuffer);
+          const binary = Array.from(bytes, byte => String.fromCharCode(byte)).join('');
+          const base64 = btoa(binary);
+          
+          // Extract filename without extension
+          const filename = file.name.replace(/\.zip$/, '');
+          
+          // Process ZIP file using callback if available, otherwise use WASM API directly
+          if (onSchematicZipUpload) {
+            const result = await onSchematicZipUpload(base64, filename);
+            const ok = Boolean((result as any)?.success ?? (result as any)?.schematic_restored ?? false);
+            if (!ok) {
+              const msg = (result as any)?.message ? String((result as any).message) : 'Failed to process ZIP file';
+              setUploadStatus(`✗ ${msg}`);
+              return;
+            }
+            setLoadedSuccess(`${filename}.zip`);
+          } else {
+            // Fallback: use WASM API directly
+            const result = await wasmAPI.processSchematicZip(base64, filename);
+            const ok = Boolean((result as any)?.success ?? (result as any)?.schematic_restored ?? false);
+            if (!ok) {
+              const msg = (result as any)?.message ? String((result as any).message) : 'Failed to process ZIP file';
+              setUploadStatus(`✗ ${msg}`);
+              return;
+            }
+            setLoadedSuccess(`${filename}.zip`);
+          }
+        } catch (error) {
+          const msg =
+            error instanceof Error
+              ? error.message
+              : typeof error === 'string'
+                ? error
+                : JSON.stringify(error);
+          setUploadStatus(`✗ ${msg}`);
+          console.error('ZIP upload error:', error);
+        }
+      };
+      reader.onerror = () => {
+        setUploadStatus('✗ Failed to read file');
+        setTimeout(() => setUploadStatus(''), 3000);
+      };
+      reader.readAsArrayBuffer(file);
+    }
   };
 
   const handleDemoSelect = async (event: React.ChangeEvent<HTMLSelectElement>) => {
@@ -137,11 +225,45 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({
     setSelectedDemo(demoValue);
 
     try {
-      // Remove .json extension from filename for processing
-      const filename = demoValue.replace(/\.json$/, '');
-      // Load the demo JSON file from WASM
-      const content = await wasmAPI.loadDemo(demoValue);
-      await handleSchematicContent(content, filename);
+      const isZip = demoValue.endsWith('.zip');
+      const isJson = demoValue.endsWith('.json');
+      
+      if (isZip) {
+        // Load ZIP demo file
+        const filename = demoValue.replace(/\.zip$/, '');
+        // Load the demo ZIP file from WASM (as base64)
+        const content = await wasmAPI.loadDemo(demoValue);
+        // Process ZIP file using callback if available, otherwise use WASM API directly
+        if (onSchematicZipUpload) {
+          const result = await onSchematicZipUpload(content, filename);
+          const ok = Boolean((result as any)?.success ?? (result as any)?.schematic_restored ?? false);
+          if (!ok) {
+            const msg = (result as any)?.message ? String((result as any).message) : 'Failed to process ZIP demo';
+            setUploadStatus(`✗ ${msg}`);
+            setDemoSelectKey(prev => prev + 1);
+            return;
+          }
+          setLoadedSuccess(`${filename}.zip`);
+        } else {
+          // Fallback: use WASM API directly
+          const result = await wasmAPI.processSchematicZip(content, filename);
+          const ok = Boolean((result as any)?.success ?? (result as any)?.schematic_restored ?? false);
+          if (!ok) {
+            const msg = (result as any)?.message ? String((result as any).message) : 'Failed to process ZIP demo';
+            setUploadStatus(`✗ ${msg}`);
+            setDemoSelectKey(prev => prev + 1);
+            return;
+          }
+          setLoadedSuccess(`${filename}.zip`);
+        }
+      } else if (isJson) {
+        // Load JSON demo file
+        const filename = demoValue.replace(/\.json$/, '');
+        const content = await wasmAPI.loadDemo(demoValue);
+        await handleSchematicContent(content, filename);
+      } else {
+        throw new Error('Unsupported demo file type');
+      }
       
       // Reset select by changing key to allow re-selecting the same option
       // The selectedDemo will be restored by useEffect after key change
@@ -213,7 +335,7 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({
                 onChange={handleDemoSelect}
               >
                 {demoList.map((demo) => {
-                  const label = demo.label || (demo.value ? demo.value.replace(/\.json$/, '') : '');
+                  const label = demo.label || demo.value || '';
                   return (
                     <option key={demo.value} value={demo.value}>
                       {label}
@@ -245,14 +367,14 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({
               <input
                 ref={fileInputRef}
                 type="file"
-                accept=".json"
+                accept=".json,.zip"
                 onChange={handleFileSelect}
                 style={{ display: 'none' }}
               />
-              <div className="upload-icon">📄</div>
+              <div className="upload-icon">📄 / 📦︎</div>
               {!uploadStatus && (
                 <>
-                  <div className="upload-text">Upload Schematic.json</div>
+                  <div className="upload-text">Upload json or zip file</div>
                   <div className="upload-hint">Click or drag file here</div>
                 </>
               )}
@@ -275,13 +397,13 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({
         
         <section className="settings-section">
           <h3>Layers</h3>
-          {layerStyles ? (
+          {layerStyles && (
             <LayerStylesEditor
               styles={layerStyles}
               onUpdate={onLayerStylesUpdate}
+              wasmStyles={layerStyles}
+              defaultStyles={defaultLayerStyles || undefined}
             />
-          ) : (
-            <div className="info-text">Loading layer styles...</div>
           )}
         </section>
 

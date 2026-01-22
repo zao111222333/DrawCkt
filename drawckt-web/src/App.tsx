@@ -266,6 +266,37 @@ function App() {
     }
   };
 
+  const handleSchematicZipUpload = async (base64Zip: string, filename?: string) => {
+    // Clear old symbols and schematic first to show empty-message state
+    // Layer styles will be restored from ZIP
+    setSymbols([]);
+    setSchematicReady(false);
+    
+    try {
+      const result = await wasmAPI.processSchematicZip(base64Zip, filename);
+      const allSymbols = await wasmAPI.getAllSymbols();
+      setSymbols(allSymbols);
+      setSchematicReady(result.schematic_restored ?? result.schematic_rendered ?? false);
+      
+      // Sync layer styles from WASM (they may have been restored from ZIP)
+      wasmAPI.getLayerStyles().then(setLayerStyles).catch((err) => {
+        console.error('Failed to get layer styles after ZIP load:', err);
+      });
+      
+      // Force schematic view to re-render with new content
+      if (result.schematic_restored ?? result.schematic_rendered ?? false) {
+        setSchematicRefreshKey(prev => prev + 1);
+        // Force symbols list to re-render as well
+        setSymbolsRefreshKey(prev => prev + 1);
+      }
+      return result;
+    } catch (error) {
+      console.error('Failed to process schematic ZIP:', error);
+      // Keep empty state on error (already cleared above)
+      throw error;
+    }
+  };
+
   const handleSchematicClear = () => {
     // Clear symbols and schematic to show empty-message state
     // Layer styles are preserved (not cleared)
@@ -365,6 +396,7 @@ function App() {
             </div>
               <SettingsPanel
                 onSchematicUpload={handleSchematicUpload}
+                onSchematicZipUpload={handleSchematicZipUpload}
                 onSchematicClear={handleSchematicClear}
                 layerStyles={layerStyles}
                 onLayerStylesUpdate={handleLayerStylesUpdate}

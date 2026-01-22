@@ -5,6 +5,10 @@ import './LayerStylesEditor.css';
 interface LayerStylesEditorProps {
   styles: LayerStyles;
   onUpdate: (styles: LayerStyles) => void;
+  wasmStyles?: LayerStyles; // Current WASM state
+  defaultStyles?: LayerStyles; // Default LayerStyles
+  onUndo?: () => void; // Callback for undo button
+  onReset?: () => void; // Callback for reset button
 }
 
 // Deep comparison function for LayerStyles
@@ -54,7 +58,14 @@ const deepCopyLayerStyles = (styles: LayerStyles): LayerStyles => {
   };
 };
 
-const LayerStylesEditor: React.FC<LayerStylesEditorProps> = ({ styles, onUpdate }) => {
+const LayerStylesEditor: React.FC<LayerStylesEditorProps> = ({ 
+  styles, 
+  onUpdate, 
+  wasmStyles,
+  defaultStyles,
+  onUndo,
+  onReset,
+}) => {
   const [localStyles, setLocalStyles] = useState<LayerStyles>(() => deepCopyLayerStyles(styles));
   const [savedStyles, setSavedStyles] = useState<LayerStyles>(() => deepCopyLayerStyles(styles));
   const [expandedLayer, setExpandedLayer] = useState<string | null>(null);
@@ -93,6 +104,9 @@ const LayerStylesEditor: React.FC<LayerStylesEditorProps> = ({ styles, onUpdate 
   // Check if localStyles differ from savedStyles
   // This will be recalculated on every render when localStyles or savedStyles change
   const hasChanges = !areStylesEqual(localStyles, savedStyles);
+  
+  // Check if WASM current state differs from default (for reset button disable condition)
+  const wasmDiffersFromDefault = wasmStyles && defaultStyles ? !areStylesEqual(wasmStyles, defaultStyles) : true;
 
   const updateLayer = (layerName: 'instance' | 'device' | 'annotate' | 'pin' | 'wire' | 'text', field: string, value: any) => {
     const newStyles = {
@@ -325,6 +339,27 @@ const LayerStylesEditor: React.FC<LayerStylesEditorProps> = ({ styles, onUpdate 
     setSavedStyles(deepCopyLayerStyles(localStyles));
   };
 
+  const handleUndo = () => {
+    if (wasmStyles) {
+      // Reset localStyles to WASM current state (but don't update WASM)
+      setLocalStyles(deepCopyLayerStyles(wasmStyles));
+    } else if (onUndo) {
+      onUndo();
+    }
+  };
+
+  const handleReset = () => {
+    if (defaultStyles) {
+      // Reset localStyles to default and update WASM
+      const defaultStylesCopy = deepCopyLayerStyles(defaultStyles);
+      setLocalStyles(defaultStylesCopy);
+      setSavedStyles(defaultStylesCopy);
+      onUpdate(defaultStylesCopy);
+    } else if (onReset) {
+      onReset();
+    }
+  };
+
   // Layer metadata
   type LayerKey = 'instance' | 'device' | 'annotate' | 'pin' | 'wire' | 'text';
   const layerMetadata: Record<string, { key: LayerKey; label: string }> = {
@@ -474,14 +509,45 @@ const LayerStylesEditor: React.FC<LayerStylesEditorProps> = ({ styles, onUpdate 
           </div>
         );
       })}
-      <button 
-        className={`update-btn ${hasChanges ? 'enabled' : 'disabled'}`}
-        onClick={hasChanges ? handleSave : undefined}
-        disabled={!hasChanges}
-        title={hasChanges ? 'Apply layer style changes' : 'No changes to apply'}
-      >
-        Update
-      </button>
+      <div style={{ display: 'flex', gap: '8px', justifyContent: 'center'}}>
+        {wasmStyles && (
+          <button 
+            className={`update-btn ${hasChanges ? 'enabled' : 'disabled'}`}
+            onClick={hasChanges ? handleUndo : undefined}
+            disabled={!hasChanges}
+            title={hasChanges ? 'Undo to current WASM state' : 'No changes to undo'}
+            style={{
+              background: '#6c757d',
+            }}
+          >
+            Undo
+          </button>
+        )}
+        {defaultStyles && (
+          <button 
+            className={`update-btn ${wasmDiffersFromDefault ? 'enabled' : 'disabled'}`}
+            onClick={wasmDiffersFromDefault ? handleReset : undefined}
+            disabled={!wasmDiffersFromDefault}
+            title={wasmDiffersFromDefault ? 'Reset to default layer styles and update' : 'WASM state already matches default'}
+            style={{
+              background: '#F44336',
+            }}
+          >
+            Reset
+          </button>
+        )}
+        <button 
+          className={`update-btn ${hasChanges ? 'enabled' : 'disabled'}`}
+          onClick={hasChanges ? handleSave : undefined}
+          disabled={!hasChanges}
+          title={hasChanges ? 'Apply layer style changes' : 'No changes to apply'}
+          style={{
+            background: '#28a745',
+          }}
+        >
+          Update
+        </button>
+      </div>
     </div>
   );
 };
