@@ -1,18 +1,18 @@
-/* Scroll container wrapper */
+/* Fixed container wrapper - toolbar stays here */
 .schematic-view-scroll-container {
   flex: 1;
-  overflow: auto;
+  overflow: hidden;
   position: relative;
   background: #ffffff;
   min-height: 0;
   width: 100%;
   height: 100%;
-  -webkit-overflow-scrolling: touch;
 }
 
+/* Scroll container - content scrolls here */
 .schematic-view {
   flex: 1;
-  overflow: visible;
+  overflow: auto;
   padding: 0;
   margin: 0;
   background: #ffffff;
@@ -20,6 +20,9 @@
   flex-direction: column;
   min-height: 0;
   position: relative;
+  width: 100%;
+  height: 100%;
+  -webkit-overflow-scrolling: touch;
 }
 
 .schematic-view.empty {
@@ -48,5 +51,103 @@
   min-height: 0;
   box-shadow: none;
   position: relative;
+}
+
+/* Fixed toolbar wrapper in scroll container */
+.schematic-view-scroll-container .schematic-toolbar-wrapper {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  width: 100%;
+  z-index: 1000;
+  pointer-events: auto;
+}
+
+/* Toolbar inside wrapper - takes full width, force with !important to override draw.io styles */
+.schematic-view-scroll-container .schematic-toolbar-fixed {
+  position: relative !important;
+  width: 100% !important;
+  min-width: 100% !important;
+  max-width: 100% !important;
+  box-sizing: border-box !important;
+}
+
+/* Action buttons - float over toolbar on the right */
+.schematic-view-scroll-container .schematic-actions {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 1001;
+  pointer-events: auto;
+}
+
+/* Schematic action buttons */
+.schematic-actions {
+  display: flex;
+  gap: 4px;
+  margin-left: 8px;
+  align-items: center;
+}
+
+.schematic-undo-btn,
+.schematic-redo-btn {
+  background-color: #6c757d;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 2px 8px;
+  font-size: 10px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  flex-shrink: 0;
+  line-height: 1;
+  min-width: 40px;
+}
+
+.schematic-undo-btn.enabled,
+.schematic-redo-btn.enabled {
+  opacity: 1;
+  cursor: pointer;
+}
+
+.schematic-undo-btn.enabled:hover,
+.schematic-redo-btn.enabled:hover {
+  background-color: #5a6268;
+}
+
+.schematic-undo-btn.enabled:active,
+.schematic-redo-btn.enabled:active {
+  background-color: #545b62;
+}
+
+.schematic-undo-btn.disabled,
+.schematic-redo-btn.disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+.schematic-edit-btn {
+  background-color: #007bff;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 2px 8px;
+  font-size: 10px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  flex-shrink: 0;
+}
+
+.schematic-edit-btn:hover {
+  background-color: #0056b3;
+}
+
+.schematic-edit-btn:active {
+  background-color: #004085;
 }
 

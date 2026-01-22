@@ -302,5 +302,66 @@ export const wasmAPI = {
       throw new Error(`Failed to load demo: ${error}`);
     }
   },
+
+  async updateSchematicContent(content: string): Promise<{ success: boolean; message: string }> {
+    await initWasm();
+    try {
+      const result = wasm.update_schematic_content(content);
+      return result as unknown as { success: boolean; message: string };
+    } catch (error) {
+      throw new Error(`Failed to update schematic content: ${error}`);
+    }
+  },
+
+  async undoSchematic(): Promise<{ success: boolean; message: string }> {
+    await initWasm();
+    try {
+      const result = wasm.undo_schematic();
+      return result as unknown as { success: boolean; message: string };
+    } catch (error) {
+      throw new Error(`Failed to undo schematic: ${error}`);
+    }
+  },
+
+  async redoSchematic(): Promise<{ success: boolean; message: string }> {
+    await initWasm();
+    try {
+      const result = wasm.redo_schematic();
+      return result as unknown as { success: boolean; message: string };
+    } catch (error) {
+      throw new Error(`Failed to redo schematic: ${error}`);
+    }
+  },
+
+  async getSchematicInfo(): Promise<{ current_idx: number; hist_len: number; can_undo: boolean; can_redo: boolean }> {
+    await initWasm();
+    try {
+      const result = wasm.get_schematic_info();
+      // Handle different return types (Map or object)
+      let schematicInfo: { current_idx: number; hist_len: number; can_undo: boolean; can_redo: boolean };
+      if (result instanceof Map) {
+        schematicInfo = {
+          current_idx: Number(result.get('current_idx') ?? 0),
+          hist_len: Number(result.get('hist_len') ?? 0),
+          can_undo: Boolean(result.get('can_undo') ?? false),
+          can_redo: Boolean(result.get('can_redo') ?? false),
+        };
+      } else if (result && typeof result === 'object') {
+        const obj = result as any;
+        schematicInfo = {
+          current_idx: Number(obj.current_idx ?? 0),
+          hist_len: Number(obj.hist_len ?? 0),
+          can_undo: Boolean(obj.can_undo ?? false),
+          can_redo: Boolean(obj.can_redo ?? false),
+        };
+      } else {
+        throw new Error(`Unexpected result type: ${typeof result}`);
+      }
+      return schematicInfo;
+    } catch (error) {
+      console.error('Error in getSchematicInfo:', error);
+      throw new Error(`Failed to get schematic info: ${error}`);
+    }
+  },
 };
 

@@ -19,6 +19,7 @@ function App() {
   const [schematicRefreshKey, setSchematicRefreshKey] = useState(0);
   const [symbolsRefreshKey, setSymbolsRefreshKey] = useState(0);
   const [editingSymbol, setEditingSymbol] = useState<{ lib: string; cell: string; content: string } | null>(null);
+  const [editingSchematic, setEditingSchematic] = useState<{ content: string } | null>(null);
 
   // Handle browser navigation
   useEffect(() => {
@@ -475,7 +476,23 @@ function App() {
           >
             <h2>Schematic</h2>
           </div>
-          <SchematicView ready={schematicReady} refreshKey={schematicRefreshKey} />
+          <SchematicView 
+            ready={schematicReady} 
+            refreshKey={schematicRefreshKey}
+            onEditSchematic={async () => {
+              try {
+                const content = await wasmAPI.getSchematicContent();
+                setEditingSchematic({ content });
+              } catch (error) {
+                console.error('Failed to get schematic content:', error);
+                alert(`Failed to load schematic content: ${error}`);
+              }
+            }}
+            onSchematicUpdated={async () => {
+              // Refresh schematic view
+              setSchematicRefreshKey(prev => prev + 1);
+            }}
+          />
         </div>
       </div>
       {editingSymbol && (
@@ -502,6 +519,27 @@ function App() {
             }
           }}
           onClose={() => setEditingSymbol(null)}
+        />
+      )}
+      {editingSchematic && (
+        <SymbolEditor
+          lib=""
+          cell="Schematic"
+          content={editingSchematic.content}
+          onSave={async (_lib: string, _cell: string, newContent: string) => {
+            try {
+              await wasmAPI.updateSchematicContent(newContent);
+              setEditingSchematic(null);
+              // Refresh schematic view
+              setTimeout(() => {
+                setSchematicRefreshKey(prev => prev + 1);
+              }, 100);
+            } catch (error) {
+              console.error('Failed to update schematic content:', error);
+              alert(`Failed to save schematic: ${error}`);
+            }
+          }}
+          onClose={() => setEditingSchematic(null)}
         />
       )}
     </div>

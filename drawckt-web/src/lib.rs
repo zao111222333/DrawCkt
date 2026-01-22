@@ -39,7 +39,7 @@ pub struct AppState {
     pub schematic: Option<Schematic>,
     pub layer_styles: LayerStyles,
     pub symbol_contexts: SymbolContextsData,
-    pub schematic_content: Option<String>,
+    pub schematic_content: Option<HistoryContent>,
     pub schematic_filename: Option<String>, // Original filename without extension
 }
 
@@ -52,8 +52,61 @@ pub struct SymbolContextsData {
 pub struct SymbolData {
     pub lib: String,
     pub cell: String,
+    pub history: HistoryContent,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct HistoryContent {
     pub current_idx: usize,
     pub hist_content: Vec<String>,
+}
+
+impl HistoryContent {
+    pub fn new(initial_content: String) -> Self {
+        Self {
+            current_idx: 0,
+            hist_content: vec![initial_content],
+        }
+    }
+
+    pub fn update(&mut self, content: &str) {
+        // Remove all history after current_idx
+        self.hist_content.truncate(self.current_idx + 1);
+        // Push new content to history
+        self.hist_content.push(content.to_string());
+        // Update current_idx
+        self.current_idx += 1;
+    }
+
+    pub fn undo(&mut self) -> Result<(), String> {
+        if self.current_idx > 0 {
+            self.current_idx -= 1;
+            Ok(())
+        } else {
+            Err("No history to undo".to_string())
+        }
+    }
+
+    pub fn redo(&mut self) -> Result<(), String> {
+        if self.current_idx < self.hist_content.len() - 1 {
+            self.current_idx += 1;
+            Ok(())
+        } else {
+            Err("No history to redo".to_string())
+        }
+    }
+
+    pub fn get_current(&self) -> Option<&String> {
+        self.hist_content.get(self.current_idx)
+    }
+
+    pub fn can_undo(&self) -> bool {
+        self.current_idx > 0
+    }
+
+    pub fn can_redo(&self) -> bool {
+        self.current_idx < self.hist_content.len() - 1
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -137,8 +190,7 @@ pub fn process_schematic_json_with_filename(
         symbols_data.push(SymbolData {
             lib: symbol_id.lib.clone(),
             cell: symbol_id.cell.clone(),
-            current_idx: 0,
-            hist_content: vec![content.clone()],
+            history: HistoryContent::new(content.clone()),
         });
     }
 
@@ -152,7 +204,7 @@ pub fn process_schematic_json_with_filename(
         .render_schematic_file(&symbol_contexts)
         .map_err(|e| JsValue::from_str(&format!("Failed to render schematic: {}", e)))?;
 
-    state.schematic_content = Some(schematic_content.clone());
+    state.schematic_content = Some(HistoryContent::new(schematic_content.clone()));
 
     let symbol_count = symbols_data.len();
     AppState::set_state(state);
@@ -176,7 +228,7 @@ pub fn get_symbol_content(lib: &str, cell: &str) -> Result<JsValue, JsValue> {
 
     for symbol in &state.symbol_contexts.symbols {
         if symbol.lib == lib && symbol.cell == cell {
-            if let Some(content) = symbol.hist_content.get(symbol.current_idx) {
+            if let Some(content) = symbol.history.get_current() {
                 return Ok(JsValue::from_str(content));
             }
         }
@@ -195,7 +247,13 @@ pub fn get_schematic_content() -> Result<JsValue, JsValue> {
     let state = AppState::get_state();
 
     match &state.schematic_content {
-        Some(content) => Ok(JsValue::from_str(content)),
+        Some(history) => {
+            if let Some(content) = history.get_current() {
+                Ok(JsValue::from_str(content))
+            } else {
+                Err(JsValue::from_str("Schematic content not available"))
+            }
+        }
         None => Err(JsValue::from_str("Schematic not rendered yet")),
     }
 }
@@ -280,8 +338,7 @@ pub fn update_layer_styles(styles_json: &str) -> Result<JsValue, JsValue> {
                     cell: symbol_data.cell.clone(),
                 };
                 // Use current content from history
-                if let Some(current_content) = symbol_data.hist_content.get(symbol_data.current_idx)
-                {
+                if let Some(current_content) = symbol_data.history.get_current() {
                     symbol_contexts.insert(symbol_id, current_content.clone());
                 }
             }
@@ -290,7 +347,12 @@ pub fn update_layer_styles(styles_json: &str) -> Result<JsValue, JsValue> {
                 .render_schematic_file(&symbol_contexts)
                 .map_err(|e| JsValue::from_str(&format!("Failed to render schematic: {}", e)))?;
 
-            state.schematic_content = Some(schematic_content);
+            // Update schematic history
+            if let Some(ref mut schematic_history) = state.schematic_content {
+                schematic_history.update(&schematic_content);
+            } else {
+                state.schematic_content = Some(HistoryContent::new(schematic_content));
+            }
         } else {
             // Other fields changed, re-render symbols and update history
             log::info!("Re-rendering with updated styles");
@@ -320,8 +382,7 @@ pub fn update_layer_styles(styles_json: &str) -> Result<JsValue, JsValue> {
                     cell: symbol_data.cell.clone(),
                 };
                 // Use current content from history
-                if let Some(current_content) = symbol_data.hist_content.get(symbol_data.current_idx)
-                {
+                if let Some(current_content) = symbol_data.history.get_current() {
                     updated_symbol_contexts.insert(symbol_id, current_content.clone());
                 }
             }
@@ -330,7 +391,12 @@ pub fn update_layer_styles(styles_json: &str) -> Result<JsValue, JsValue> {
                 .render_schematic_file(&updated_symbol_contexts)
                 .map_err(|e| JsValue::from_str(&format!("Failed to render schematic: {}", e)))?;
 
-            state.schematic_content = Some(schematic_content);
+            // Update schematic history
+            if let Some(ref mut schematic_history) = state.schematic_content {
+                schematic_history.update(&schematic_content);
+            } else {
+                state.schematic_content = Some(HistoryContent::new(schematic_content));
+            }
         }
     }
 
@@ -354,12 +420,7 @@ pub fn get_layer_styles() -> Result<JsValue, JsValue> {
 
 // Internal helper function to update symbol content with history management
 fn update_symbol_content_internal(symbol: &mut SymbolData, content: &str) {
-    // Remove all history after current_idx
-    symbol.hist_content.truncate(symbol.current_idx + 1);
-    // Push new content to history
-    symbol.hist_content.push(content.to_string());
-    // Update current_idx
-    symbol.current_idx += 1;
+    symbol.history.update(content);
 }
 
 #[wasm_bindgen]
@@ -400,7 +461,7 @@ pub fn update_symbol_content(lib: &str, cell: &str, content: &str) -> Result<JsV
                 cell: symbol_data.cell.clone(),
             };
             // Use current content from history
-            if let Some(current_content) = symbol_data.hist_content.get(symbol_data.current_idx) {
+            if let Some(current_content) = symbol_data.history.get_current() {
                 symbol_contexts.insert(symbol_id, current_content.clone());
             }
         }
@@ -410,7 +471,12 @@ pub fn update_symbol_content(lib: &str, cell: &str, content: &str) -> Result<JsV
             .render_schematic_file(&symbol_contexts)
             .map_err(|e| JsValue::from_str(&format!("Failed to render schematic: {}", e)))?;
 
-        state.schematic_content = Some(schematic_content);
+        // Update schematic history
+        if let Some(ref mut schematic_history) = state.schematic_content {
+            schematic_history.update(&schematic_content);
+        } else {
+            state.schematic_content = Some(HistoryContent::new(schematic_content));
+        }
     }
 
     AppState::set_state(state);
@@ -432,15 +498,17 @@ pub fn undo_symbol(lib: &str, cell: &str) -> Result<JsValue, JsValue> {
     let mut found = false;
     for symbol in &mut state.symbol_contexts.symbols {
         if symbol.lib == lib && symbol.cell == cell {
-            if symbol.current_idx > 0 {
-                symbol.current_idx -= 1;
-                found = true;
-                break;
-            } else {
-                return Err(JsValue::from_str(&format!(
-                    "Symbol {}/{} has no history to undo",
-                    lib, cell
-                )));
+            match symbol.history.undo() {
+                Ok(_) => {
+                    found = true;
+                    break;
+                }
+                Err(e) => {
+                    return Err(JsValue::from_str(&format!(
+                        "Symbol {}/{}: {}",
+                        lib, cell, e
+                    )));
+                }
             }
         }
     }
@@ -465,7 +533,7 @@ pub fn undo_symbol(lib: &str, cell: &str) -> Result<JsValue, JsValue> {
                 lib: symbol_data.lib.clone(),
                 cell: symbol_data.cell.clone(),
             };
-            if let Some(current_content) = symbol_data.hist_content.get(symbol_data.current_idx) {
+            if let Some(current_content) = symbol_data.history.get_current() {
                 symbol_contexts.insert(symbol_id, current_content.clone());
             }
         }
@@ -474,7 +542,12 @@ pub fn undo_symbol(lib: &str, cell: &str) -> Result<JsValue, JsValue> {
             .render_schematic_file(&symbol_contexts)
             .map_err(|e| JsValue::from_str(&format!("Failed to render schematic: {}", e)))?;
 
-        state.schematic_content = Some(schematic_content);
+        // Update schematic history
+        if let Some(ref mut schematic_history) = state.schematic_content {
+            schematic_history.update(&schematic_content);
+        } else {
+            state.schematic_content = Some(HistoryContent::new(schematic_content));
+        }
     }
 
     AppState::set_state(state);
@@ -496,15 +569,17 @@ pub fn redo_symbol(lib: &str, cell: &str) -> Result<JsValue, JsValue> {
     let mut found = false;
     for symbol in &mut state.symbol_contexts.symbols {
         if symbol.lib == lib && symbol.cell == cell {
-            if symbol.current_idx < symbol.hist_content.len() - 1 {
-                symbol.current_idx += 1;
-                found = true;
-                break;
-            } else {
-                return Err(JsValue::from_str(&format!(
-                    "Symbol {}/{} has no history to redo",
-                    lib, cell
-                )));
+            match symbol.history.redo() {
+                Ok(_) => {
+                    found = true;
+                    break;
+                }
+                Err(e) => {
+                    return Err(JsValue::from_str(&format!(
+                        "Symbol {}/{}: {}",
+                        lib, cell, e
+                    )));
+                }
             }
         }
     }
@@ -529,7 +604,7 @@ pub fn redo_symbol(lib: &str, cell: &str) -> Result<JsValue, JsValue> {
                 lib: symbol_data.lib.clone(),
                 cell: symbol_data.cell.clone(),
             };
-            if let Some(current_content) = symbol_data.hist_content.get(symbol_data.current_idx) {
+            if let Some(current_content) = symbol_data.history.get_current() {
                 symbol_contexts.insert(symbol_id, current_content.clone());
             }
         }
@@ -538,7 +613,12 @@ pub fn redo_symbol(lib: &str, cell: &str) -> Result<JsValue, JsValue> {
             .render_schematic_file(&symbol_contexts)
             .map_err(|e| JsValue::from_str(&format!("Failed to render schematic: {}", e)))?;
 
-        state.schematic_content = Some(schematic_content);
+        // Update schematic history
+        if let Some(ref mut schematic_history) = state.schematic_content {
+            schematic_history.update(&schematic_content);
+        } else {
+            state.schematic_content = Some(HistoryContent::new(schematic_content));
+        }
     }
 
     AppState::set_state(state);
@@ -561,10 +641,10 @@ pub fn get_symbol_info(lib: &str, cell: &str) -> Result<JsValue, JsValue> {
             return serde_wasm_bindgen::to_value(&serde_json::json!({
                 "lib": symbol.lib,
                 "cell": symbol.cell,
-                "current_idx": symbol.current_idx,
-                "hist_len": symbol.hist_content.len(),
-                "can_undo": symbol.current_idx > 0,
-                "can_redo": symbol.current_idx < symbol.hist_content.len() - 1,
+                "current_idx": symbol.history.current_idx,
+                "hist_len": symbol.history.hist_content.len(),
+                "can_undo": symbol.history.can_undo(),
+                "can_redo": symbol.history.can_redo(),
             }))
             .map_err(|e| JsValue::from_str(&format!("Serialization error: {}", e)));
         }
@@ -574,6 +654,100 @@ pub fn get_symbol_info(lib: &str, cell: &str) -> Result<JsValue, JsValue> {
         "Symbol {}/{} not found",
         lib, cell
     )))
+}
+
+#[wasm_bindgen]
+pub fn update_schematic_content(content: &str) -> Result<JsValue, JsValue> {
+    log::info!("Updating schematic content");
+
+    let mut state = AppState::get_state();
+
+    // Update schematic history
+    if let Some(ref mut schematic_history) = state.schematic_content {
+        schematic_history.update(content);
+    } else {
+        state.schematic_content = Some(HistoryContent::new(content.to_string()));
+    }
+
+    AppState::set_state(state);
+
+    serde_wasm_bindgen::to_value(&serde_json::json!({
+        "success": true,
+        "message": "Schematic updated",
+    }))
+    .map_err(|e| JsValue::from_str(&format!("Serialization error: {}", e)))
+}
+
+#[wasm_bindgen]
+pub fn undo_schematic() -> Result<JsValue, JsValue> {
+    log::info!("Undoing schematic");
+
+    let mut state = AppState::get_state();
+
+    match state.schematic_content.as_mut() {
+        Some(history) => {
+            history.undo().map_err(|e| JsValue::from_str(&format!("Failed to undo: {}", e)))?;
+        }
+        None => {
+            return Err(JsValue::from_str("Schematic not rendered yet"));
+        }
+    }
+
+    // Content is already in history, no need to re-render
+
+    AppState::set_state(state);
+
+    serde_wasm_bindgen::to_value(&serde_json::json!({
+        "success": true,
+        "message": "Schematic undone",
+    }))
+    .map_err(|e| JsValue::from_str(&format!("Serialization error: {}", e)))
+}
+
+#[wasm_bindgen]
+pub fn redo_schematic() -> Result<JsValue, JsValue> {
+    log::info!("Redoing schematic");
+
+    let mut state = AppState::get_state();
+
+    match state.schematic_content.as_mut() {
+        Some(history) => {
+            history.redo().map_err(|e| JsValue::from_str(&format!("Failed to redo: {}", e)))?;
+        }
+        None => {
+            return Err(JsValue::from_str("Schematic not rendered yet"));
+        }
+    }
+
+    // Content is already in history, no need to re-render
+
+    AppState::set_state(state);
+
+    serde_wasm_bindgen::to_value(&serde_json::json!({
+        "success": true,
+        "message": "Schematic redone",
+    }))
+    .map_err(|e| JsValue::from_str(&format!("Serialization error: {}", e)))
+}
+
+#[wasm_bindgen]
+pub fn get_schematic_info() -> Result<JsValue, JsValue> {
+    log::debug!("Getting schematic info");
+
+    let state = AppState::get_state();
+
+    match &state.schematic_content {
+        Some(history) => {
+            serde_wasm_bindgen::to_value(&serde_json::json!({
+                "current_idx": history.current_idx,
+                "hist_len": history.hist_content.len(),
+                "can_undo": history.can_undo(),
+                "can_redo": history.can_redo(),
+            }))
+            .map_err(|e| JsValue::from_str(&format!("Serialization error: {}", e)))
+        }
+        None => Err(JsValue::from_str("Schematic not rendered yet")),
+    }
 }
 
 // Router function for embedded files
@@ -675,6 +849,7 @@ pub fn export_all_files() -> Result<JsValue, JsValue> {
     let schematic_content = state
         .schematic_content
         .as_ref()
+        .and_then(|h| h.get_current())
         .ok_or_else(|| JsValue::from_str("Schematic not rendered"))?;
 
     // Get filename
@@ -711,7 +886,7 @@ pub fn export_all_files() -> Result<JsValue, JsValue> {
         // Add symbols directory
         for symbol_data in &state.symbol_contexts.symbols {
             // Get current content from history
-            if let Some(content) = symbol_data.hist_content.get(symbol_data.current_idx) {
+            if let Some(content) = symbol_data.history.get_current() {
                 let symbol_path =
                     format!("symbols/{}/{}.drawio", symbol_data.lib, symbol_data.cell);
                 zip.start_file(&symbol_path, options).map_err(|e| {

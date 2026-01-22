@@ -178,7 +178,7 @@ const SymbolEditor: React.FC<SymbolEditorProps> = ({ lib, cell, content, onSave,
     <div className="symbol-editor-overlay">
       <div className="symbol-editor-container">
         <div className="symbol-editor-header">
-          <h3>Edit Symbol: {lib}/{cell}</h3>
+          <h3>Edit: {lib}/{cell}</h3>
           <button className="symbol-editor-close-btn" onClick={onClose}>
             ×
           </button>

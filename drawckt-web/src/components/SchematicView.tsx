@@ -1,18 +1,22 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { getBasePath } from '../utils/path';
+import { wasmAPI } from '../wasm';
 import './SchematicView.css';
 
 interface SchematicViewProps {
   ready: boolean;
   refreshKey?: number; // Key to force re-render
+  onEditSchematic?: () => void; // Callback when edit button is clicked
+  onSchematicUpdated?: () => void; // Callback when schematic is updated (for undo/redo)
 }
 
-const SchematicView: React.FC<SchematicViewProps> = ({ ready, refreshKey }) => {
+const SchematicView: React.FC<SchematicViewProps> = ({ ready, refreshKey, onEditSchematic, onSchematicUpdated }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const viewerInstanceRef = useRef<any>(null);
   const [panStart, setPanStart] = useState<{ x: number; y: number } | null>(null);
   const [isDragging, setIsDragging] = useState(false);
+  const [schematicHistory, setSchematicHistory] = useState<{ canUndo: boolean; canRedo: boolean }>({ canUndo: false, canRedo: false });
 
   useEffect(() => {
     if (!ready) {
@@ -32,6 +36,18 @@ const SchematicView: React.FC<SchematicViewProps> = ({ ready, refreshKey }) => {
           console.warn('Error cleaning up viewer:', e);
         }
         viewerInstanceRef.current = null;
+      }
+      
+      // Also clean up any toolbar wrapper that was moved to scroll container
+      if (scrollContainerRef.current) {
+        try {
+          const toolbarWrappers = scrollContainerRef.current.querySelectorAll('.schematic-toolbar-wrapper');
+          toolbarWrappers.forEach((wrapper) => {
+            wrapper.remove();
+          });
+        } catch (e) {
+          console.warn('Error cleaning up toolbar:', e);
+        }
       }
     };
 
@@ -99,6 +115,160 @@ const SchematicView: React.FC<SchematicViewProps> = ({ ready, refreshKey }) => {
         try {
           (window as any).GraphViewer.createViewerForElement(viewerDiv);
           viewerInstanceRef.current = viewerDiv;
+          
+          // Wait for toolbar to be created, then move it to scroll container
+          const moveToolbarToScrollContainer = () => {
+            if (!scrollContainerRef.current || !viewerDiv) return;
+            
+            // Find toolbar - it's typically a div with position absolute inside mxgraph
+            // Look for the toolbar element (usually has specific styling)
+            const findToolbar = () => {
+              // Try multiple selectors to find the toolbar
+              // Toolbar typically has position: absolute, z-index: 999, and display: flex
+              const allDivs = viewerDiv.querySelectorAll('div');
+              
+              for (const div of Array.from(allDivs)) {
+                const style = (div as HTMLElement).style;
+                const computedStyle = window.getComputedStyle(div);
+                const styleText = div.getAttribute('style') || '';
+                
+                // Check for toolbar characteristics:
+                // 1. Has position absolute
+                // 2. Has z-index 999 or higher
+                // 3. Has display flex
+                const hasAbsolutePosition = computedStyle.position === 'absolute' || style.position === 'absolute';
+                const hasHighZIndex = parseInt(computedStyle.zIndex) >= 999 || parseInt(style.zIndex) >= 999 || styleText.includes('z-index: 999');
+                const hasFlexDisplay = computedStyle.display === 'flex' || style.display === 'flex';
+                
+                if (hasAbsolutePosition && hasHighZIndex && hasFlexDisplay) {
+                  return div as HTMLElement;
+                }
+              }
+              
+              return null;
+            };
+            
+            let toolbar = findToolbar();
+            let attempts = 0;
+            const maxAttempts = 30;
+            
+            // Retry finding toolbar with increasing delays
+            const retryFind = setInterval(() => {
+              attempts++;
+              if (!toolbar) {
+                toolbar = findToolbar();
+              }
+              
+              if (toolbar || attempts >= maxAttempts) {
+                clearInterval(retryFind);
+                
+                if (toolbar && scrollContainerRef.current) {
+                  // Create a wrapper container for the toolbar
+                  const toolbarWrapper = document.createElement('div');
+                  toolbarWrapper.className = 'schematic-toolbar-wrapper';
+                  toolbarWrapper.style.position = 'absolute';
+                  toolbarWrapper.style.top = '0';
+                  toolbarWrapper.style.left = '0';
+                  toolbarWrapper.style.right = '0';
+                  toolbarWrapper.style.width = '100%';
+                  toolbarWrapper.style.zIndex = '1000';
+                  toolbarWrapper.style.pointerEvents = 'auto';
+                  
+                  // Move toolbar to wrapper and adjust its styles
+                  toolbar.style.position = 'relative';
+                  toolbar.style.top = 'auto';
+                  toolbar.style.left = 'auto';
+                  toolbar.style.right = 'auto';
+                  toolbar.style.width = '100%';
+                  
+                  // Add class for styling
+                  toolbar.classList.add('schematic-toolbar-fixed');
+                  
+                  // Create action buttons container - positioned absolutely to float over toolbar
+                  const actionsContainer = document.createElement('div');
+                  actionsContainer.className = 'schematic-actions';
+                  actionsContainer.style.position = 'absolute';
+                  actionsContainer.style.right = '8px';
+                  actionsContainer.style.top = '50%';
+                  actionsContainer.style.transform = 'translateY(-50%)';
+                  actionsContainer.style.display = 'flex';
+                  actionsContainer.style.gap = '4px';
+                  actionsContainer.style.alignItems = 'center';
+                  actionsContainer.style.zIndex = '1001';
+                  actionsContainer.style.pointerEvents = 'auto';
+                  
+                  // Create undo button
+                  const undoBtn = document.createElement('button');
+                  undoBtn.className = `schematic-undo-btn ${schematicHistory.canUndo ? 'enabled' : 'disabled'}`;
+                  undoBtn.textContent = 'Undo';
+                  undoBtn.title = 'Undo';
+                  undoBtn.disabled = !schematicHistory.canUndo;
+                  undoBtn.onclick = async () => {
+                    if (schematicHistory.canUndo) {
+                      try {
+                        await wasmAPI.undoSchematic();
+                        await updateSchematicHistory();
+                        if (onSchematicUpdated) {
+                          onSchematicUpdated();
+                        }
+                      } catch (error) {
+                        console.error('Failed to undo schematic:', error);
+                      }
+                    }
+                  };
+                  
+                  // Create redo button
+                  const redoBtn = document.createElement('button');
+                  redoBtn.className = `schematic-redo-btn ${schematicHistory.canRedo ? 'enabled' : 'disabled'}`;
+                  redoBtn.textContent = 'Redo';
+                  redoBtn.title = 'Redo';
+                  redoBtn.disabled = !schematicHistory.canRedo;
+                  redoBtn.onclick = async () => {
+                    if (schematicHistory.canRedo) {
+                      try {
+                        await wasmAPI.redoSchematic();
+                        await updateSchematicHistory();
+                        if (onSchematicUpdated) {
+                          onSchematicUpdated();
+                        }
+                      } catch (error) {
+                        console.error('Failed to redo schematic:', error);
+                      }
+                    }
+                  };
+                  
+                  // Create edit button
+                  const editBtn = document.createElement('button');
+                  editBtn.className = 'schematic-edit-btn';
+                  editBtn.textContent = 'Edit';
+                  editBtn.title = 'Edit Schematic';
+                  editBtn.onclick = () => {
+                    if (onEditSchematic) {
+                      onEditSchematic();
+                    }
+                  };
+                  
+                  actionsContainer.appendChild(undoBtn);
+                  actionsContainer.appendChild(redoBtn);
+                  actionsContainer.appendChild(editBtn);
+                  
+                  // Append toolbar to wrapper, then append actions (so it floats over toolbar)
+                  toolbarWrapper.appendChild(toolbar);
+                  toolbarWrapper.appendChild(actionsContainer);
+                  
+                  // Move wrapper to scroll container
+                  scrollContainerRef.current.appendChild(toolbarWrapper);
+                  
+                  // Update history state
+                  updateSchematicHistory();
+                }
+              }
+            }, 100);
+          };
+          
+          // Start trying to move toolbar after a short delay
+          setTimeout(moveToolbarToScrollContainer, 300);
+          
         } catch (e) {
           console.error('Failed to initialize schematic viewer:', e);
         }
@@ -122,22 +292,22 @@ const SchematicView: React.FC<SchematicViewProps> = ({ ready, refreshKey }) => {
 
   // Handle mouse drag to pan
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
-    if (e.button !== 0 || !scrollContainerRef.current) return; // Only left button
-    if ((e.target as HTMLElement).closest('a, button, input')) return; // Don't drag if clicking on interactive elements
+    if (e.button !== 0 || !containerRef.current) return; // Only left button
+    if ((e.target as HTMLElement).closest('a, button, input, .schematic-toolbar-fixed')) return; // Don't drag if clicking on interactive elements or toolbar
     
     setIsDragging(true);
     setPanStart({
-      x: e.clientX + scrollContainerRef.current.scrollLeft,
-      y: e.clientY + scrollContainerRef.current.scrollTop,
+      x: e.clientX + containerRef.current.scrollLeft,
+      y: e.clientY + containerRef.current.scrollTop,
     });
     e.preventDefault();
   }, []);
 
   const handleMouseMove = useCallback((e: MouseEvent) => {
-    if (!isDragging || !panStart || !scrollContainerRef.current) return;
+    if (!isDragging || !panStart || !containerRef.current) return;
     
-    scrollContainerRef.current.scrollLeft = panStart.x - e.clientX;
-    scrollContainerRef.current.scrollTop = panStart.y - e.clientY;
+    containerRef.current.scrollLeft = panStart.x - e.clientX;
+    containerRef.current.scrollTop = panStart.y - e.clientY;
   }, [isDragging, panStart]);
 
   const handleMouseUp = useCallback(() => {
@@ -147,28 +317,28 @@ const SchematicView: React.FC<SchematicViewProps> = ({ ready, refreshKey }) => {
 
   // Handle touch gestures for pan
   const handleTouchStart = useCallback((e: React.TouchEvent) => {
-    if (!scrollContainerRef.current) return;
+    if (!containerRef.current) return;
     
     if (e.touches.length === 1) {
       // Single touch - start pan
       const touch = e.touches[0];
       setIsDragging(true);
       setPanStart({
-        x: touch.clientX + scrollContainerRef.current.scrollLeft,
-        y: touch.clientY + scrollContainerRef.current.scrollTop,
+        x: touch.clientX + containerRef.current.scrollLeft,
+        y: touch.clientY + containerRef.current.scrollTop,
       });
     }
   }, []);
 
   const handleTouchMove = useCallback((e: React.TouchEvent) => {
-    if (!scrollContainerRef.current) return;
+    if (!containerRef.current) return;
     
     if (e.touches.length === 1 && isDragging && panStart) {
       // Single touch - pan
       e.preventDefault();
       const touch = e.touches[0];
-      scrollContainerRef.current.scrollLeft = panStart.x - touch.clientX;
-      scrollContainerRef.current.scrollTop = panStart.y - touch.clientY;
+      containerRef.current.scrollLeft = panStart.x - touch.clientX;
+      containerRef.current.scrollTop = panStart.y - touch.clientY;
     }
   }, [isDragging, panStart]);
 
@@ -190,6 +360,44 @@ const SchematicView: React.FC<SchematicViewProps> = ({ ready, refreshKey }) => {
     }
   }, [isDragging, handleMouseMove, handleMouseUp]);
 
+  // Update schematic history state
+  const updateSchematicHistory = async () => {
+    try {
+      const info = await wasmAPI.getSchematicInfo();
+      setSchematicHistory({
+        canUndo: info.can_undo,
+        canRedo: info.can_redo,
+      });
+      
+      // Update button states if toolbar exists
+      if (scrollContainerRef.current) {
+        const toolbarWrapper = scrollContainerRef.current.querySelector('.schematic-toolbar-wrapper');
+        if (toolbarWrapper) {
+          const undoBtn = toolbarWrapper.querySelector('.schematic-undo-btn') as HTMLButtonElement;
+          const redoBtn = toolbarWrapper.querySelector('.schematic-redo-btn') as HTMLButtonElement;
+          
+          if (undoBtn) {
+            undoBtn.disabled = !info.can_undo;
+            undoBtn.className = `schematic-undo-btn ${info.can_undo ? 'enabled' : 'disabled'}`;
+          }
+          if (redoBtn) {
+            redoBtn.disabled = !info.can_redo;
+            redoBtn.className = `schematic-redo-btn ${info.can_redo ? 'enabled' : 'disabled'}`;
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Failed to get schematic info:', error);
+    }
+  };
+
+  // Update history when refreshKey changes
+  useEffect(() => {
+    if (ready) {
+      updateSchematicHistory();
+    }
+  }, [ready, refreshKey]);
+
 
   if (!ready) {
     return (
@@ -206,13 +414,16 @@ const SchematicView: React.FC<SchematicViewProps> = ({ ready, refreshKey }) => {
     <div 
       className="schematic-view-scroll-container"
       ref={scrollContainerRef}
-      onMouseDown={handleMouseDown}
-      onTouchStart={handleTouchStart}
-      onTouchMove={handleTouchMove}
-      onTouchEnd={handleTouchEnd}
-      style={{ cursor: isDragging ? 'grabbing' : 'grab' }}
     >
-      <div className="schematic-view" ref={containerRef}>
+      <div 
+        className="schematic-view" 
+        ref={containerRef}
+        onMouseDown={handleMouseDown}
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
+        style={{ cursor: isDragging ? 'grabbing' : 'grab' }}
+      >
         {/* mxgraph div is created dynamically in useEffect */}
       </div>
     </div>
