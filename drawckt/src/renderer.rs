@@ -147,31 +147,60 @@ impl Renderer {
             Layer::Pin => &self.layer_styles.pin,
             Layer::Device => &self.layer_styles.device,
             Layer::Wire => &self.layer_styles.wire,
+            Layer::Text => &self.layer_styles.text,
         }
     }
 
-    fn init_layers<const IS_SCH: bool>(&self, page: &mut Page) -> IndexMap<Layer, String> {
-        let mut layer_id_map: IndexMap<Layer, String> = [
-            Layer::Instance,
-            Layer::Annotate,
-            Layer::Pin,
-            Layer::Device,
-            Layer::Wire,
-        ]
-        .into_iter()
-        .map(|layer| (layer, format!("layer-{}", layer.as_str())))
-        .collect();
-        layer_id_map.sort_by(|a, _, b, _| {
-            let priority_a = self.get_layer_style(a).priority;
-            let priority_b = self.get_layer_style(b).priority;
-            priority_a.cmp(&priority_b)
-        });
-        for (layer, layer_id) in layer_id_map.iter() {
-            // Create layer mxCell with id="layer-{layer_name}", value="{layer_name}", parent="0"
-            let mut layer_cell = drawrs::xml_base::XMLBase::new(Some(layer_id.clone()));
+    fn init_layers<const IS_SCH: bool>(&self, page: &mut Page, layer_order: &[Layer; 6]) -> DrawcktResult<()> {
+        let mut instance = false;
+        let mut annotate = false;
+        let mut pin = false;
+        let mut device = false;
+        let mut wire = false;
+        let mut text = false;
+        for layer in layer_order.iter().rev() {
+            match layer {
+                Layer::Instance => {
+                    if instance {
+                        return Err(DrawcktError::RepeatLayer(*layer))
+                    }
+                    instance = true;
+                },
+                Layer::Annotate => {
+                    if annotate {
+                        return Err(DrawcktError::RepeatLayer(*layer))
+                    }
+                    annotate = true;
+                },
+                Layer::Pin => {
+                    if pin {
+                        return Err(DrawcktError::RepeatLayer(*layer))
+                    }
+                    pin = true;
+                },
+                Layer::Device => {
+                    if device {
+                        return Err(DrawcktError::RepeatLayer(*layer))
+                    }
+                    device = true;
+                },
+                Layer::Wire => {
+                    if wire {
+                        return Err(DrawcktError::RepeatLayer(*layer))
+                    }
+                    wire = true;
+                },
+                Layer::Text => {
+                    if text {
+                        return Err(DrawcktError::RepeatLayer(*layer))
+                    }
+                    text = true;
+                },
+            }
+            let mut layer_cell = drawrs::xml_base::XMLBase::new(Some(layer.id()));
             layer_cell.xml_class = "mxCell".to_string();
             layer_cell.xml_parent = Some("0".to_string());
-            layer_cell.value = Some(layer.as_str().to_string());
+            layer_cell.value = Some(layer.to_string());
             layer_cell.visible = Some(if IS_SCH && !self.get_layer_style(layer).sch_visible {
                 "0".to_string()
             } else {
@@ -179,7 +208,7 @@ impl Renderer {
             });
             page.add_object(drawrs::DiagramObject::XmlBase(layer_cell));
         }
-        layer_id_map
+        Ok(())
     }
 
     fn get_wire_style(&self) -> &LayerStyle {
@@ -272,34 +301,18 @@ impl Renderer {
         Ok(contexts)
     }
 
-    fn render_symbol(&self, page: &mut Page, template: &Symbol) -> DrawcktResult<()> {
-        let layer_id_map = self.init_layers::<false>(page);
 
-        // Helper function to flip Y coordinate: y_drawio = (symbol_max_y - y_json) * SCALE
-        let flip_y = |y: f64| -> f64 { -y * SCALE };
 
-        // Sort shapes by layer priority (higher priority renders later)
-        let mut shapes_sorted: Vec<&Shape> = template.shapes.iter().collect();
-        shapes_sorted.sort_by_key(|shape| {
-            let layer = match shape {
-                Shape::Rect { layer, .. } => layer,
-                Shape::Line { layer, .. } => layer,
-                Shape::Label { layer, .. } => layer,
-                Shape::Polygon {
-                    layer,
-                    fill_style: _,
-                    ..
-                } => layer,
-                Shape::Ellipse { layer, .. } => layer,
-            };
-            let layer_style = self.get_layer_style(layer);
-            layer_style.priority
-        });
-
-        // Render each shape in the template using SCALE to convert coordinates and flip Y
-        for (idx, shape) in shapes_sorted.iter().enumerate() {
-            match shape {
-                Shape::Rect {
+    // Unified function to render a single Shape
+    fn render_shape(
+        &self,
+        shape: &Shape,
+        page: &mut Page,
+        flip_y: &dyn Fn(f64) -> f64,
+        obj_id: String,
+    ) -> DrawcktResult<()> {
+        match shape {
+            Shape::Rect {
                     layer,
                     fill_style,
                     b_box,
@@ -312,16 +325,12 @@ impl Renderer {
 
                         let layer_style = self.get_layer_style(layer);
 
-                        let mut obj = Object::new(Some(template.gen_obj_id(layer, idx)));
+                        let mut obj = Object::new(Some(obj_id));
                         obj.set_position([x, y]);
                         obj.set_width(width.abs());
                         obj.set_height(height.abs());
                         self.apply_fill_style(&mut obj, *fill_style, layer_style);
-                        if let Some(layer_id) = layer_id_map.get(layer) {
-                            obj.set_xml_parent(Some(layer_id.clone()));
-                        } else {
-                            obj.set_xml_parent(Some("1".to_string()));
-                        }
+                        obj.set_xml_parent(Some(layer.id()));
                         page.add_object(DiagramObject::Object(obj));
                     }
                 }
@@ -345,16 +354,10 @@ impl Renderer {
 
                         let layer_style = self.get_layer_style(layer);
 
-                        let mut edge = Edge::new(Some(template.gen_obj_id(layer, idx)));
+                        let mut edge = Edge::new(Some(obj_id));
                         edge.set_stroke_width(Some(layer_style.stroke_width));
                         edge.set_stroke_color(Some(layer_style.stroke_color.clone()));
-                        // Set parent to layer id instead of "1"
-                        if let Some(layer_id) = layer_id_map.get(layer) {
-                            edge.set_xml_parent(Some(layer_id.clone()));
-                        } else {
-                            edge.set_xml_parent(Some("1".to_string()));
-                        }
-
+                        edge.set_xml_parent(Some(layer.id()));
                         edge.geometry().set_width(width);
                         edge.geometry().set_height(height);
                         edge.geometry().set_relative(Some(true));
@@ -375,12 +378,14 @@ impl Renderer {
                     text,
                     xy,
                     orient: _,
+                    height: _,
+                    justify: _,
                 } => {
                     let x = xy[0] * SCALE;
                     let y = flip_y(xy[1]);
 
                     let layer_style = self.get_layer_style(layer);
-                    let mut obj = Object::new(Some(template.gen_obj_id(layer, idx)));
+                    let mut obj = Object::new(Some(obj_id));
                     obj.set_value(text.clone());
                     obj.set_position([x, y]);
                     obj.set_width(100.0);
@@ -389,12 +394,7 @@ impl Renderer {
                     obj.set_stroke_color(Some("none".to_string()));
                     obj.set_font_color(Some(layer_style.text_color.clone()));
                     obj.set_font_size(Some(layer_style.font_size as i32));
-                    // Set parent to layer id instead of "1"
-                    if let Some(layer_id) = layer_id_map.get(layer) {
-                        obj.set_xml_parent(Some(layer_id.clone()));
-                    } else {
-                        obj.set_xml_parent(Some("1".to_string()));
-                    }
+                    obj.set_xml_parent(Some(layer.id()));
                     page.add_object(obj.into());
                 }
                 Shape::Polygon {
@@ -449,17 +449,12 @@ impl Renderer {
 
                         let layer_style = self.get_layer_style(layer);
 
-                        let mut obj = Object::new(Some(template.gen_obj_id(layer, idx)));
+                        let mut obj = Object::new(Some(obj_id));
                         obj.set_position([x, y]);
                         obj.set_width(width.abs());
                         obj.set_height(height.abs());
                         self.apply_fill_style(&mut obj, *fill_style, layer_style);
-                        // Set parent to layer id instead of "1"
-                        if let Some(layer_id) = layer_id_map.get(layer) {
-                            obj.set_xml_parent(Some(layer_id.clone()));
-                        } else {
-                            obj.set_xml_parent(Some("1".to_string()));
-                        }
+                        obj.set_xml_parent(Some(layer.id()));
                         obj.set_shape("mxgraph.basic.polygon".to_string());
                         obj.set_poly_coords(poly_coords);
                         page.add_object(DiagramObject::Object(obj));
@@ -478,22 +473,28 @@ impl Renderer {
 
                         let layer_style = self.get_layer_style(layer);
 
-                        let mut obj = Object::new(Some(template.gen_obj_id(layer, idx)));
+                        let mut obj = Object::new(Some(obj_id));
                         obj.set_position([x, y]);
                         obj.set_width(width.abs());
                         obj.set_height(height.abs());
                         self.apply_fill_style(&mut obj, *fill_style, layer_style);
-                        // Set parent to layer id instead of "1"
-                        if let Some(layer_id) = layer_id_map.get(layer) {
-                            obj.set_xml_parent(Some(layer_id.clone()));
-                        } else {
-                            obj.set_xml_parent(Some("1".to_string()));
-                        }
+                        obj.set_xml_parent(Some(layer.id()));
                         obj.set_shape("ellipse".to_string());
                         page.add_object(obj.into());
                     }
                 }
             }
+        Ok(())
+    }
+
+    fn render_symbol(&self, page: &mut Page, template: &Symbol) -> DrawcktResult<()> {
+        self.init_layers::<false>(page, &self.layer_styles.layer_order)?;
+
+        // Helper function to flip Y coordinate: y_drawio = (symbol_max_y - y_json) * SCALE
+        let flip_y = |y: f64| -> f64 { -y * SCALE };
+        // Render each shape in the template using SCALE to convert coordinates and flip Y
+        for (idx, shape) in template.shapes.iter().enumerate() {
+            self.render_shape(shape, page, &flip_y, template.gen_obj_id(shape.layer(), idx))?;
         }
 
         Ok(())
@@ -528,7 +529,7 @@ impl Renderer {
         );
         let mut schematic_page = Page::new(Some(page_name.clone()), false);
         schematic_page.set_name(page_name.clone());
-        let layer_id_map = self.init_layers::<true>(&mut schematic_page);
+        self.init_layers::<true>(&mut schematic_page, &self.layer_styles.layer_order)?;
 
         // Process each instance
         for instance in &self.schematic.instances {
@@ -619,12 +620,28 @@ impl Renderer {
             obj.set_font_color(Some(layer_style.text_color.clone()));
             obj.set_font_size(Some(layer_style.font_size as i32));
             // Set parent to pin layer id
-            if let Some(layer_id) = layer_id_map.get(&Layer::Pin) {
-                obj.set_xml_parent(Some(layer_id.clone()));
-            } else {
-                obj.set_xml_parent(Some("1".to_string()));
-            }
+            obj.set_xml_parent(Some(Layer::Pin.id()));
             schematic_page.add_object(obj.into());
+        }
+
+        // Render labels
+        let mut label_counter = 0;
+        for label in &self.schematic.labels {
+            self.render_shape(label, &mut schematic_page, &flip_y, format!("label-{}", label_counter))?;
+            label_counter += 1;
+        }
+
+        // Render shapes (with wire_show_intersection check)
+        let mut shape_counter = 0;
+        for shape in &self.schematic.shapes {
+            
+            // Skip wire layer shapes if wire_show_intersection is false
+            if shape.layer().eq(&Layer::Wire) && !self.layer_styles.wire_show_intersection {
+                continue;
+            }
+            
+            self.render_shape(shape, &mut schematic_page, &flip_y, format!("shape-{}", shape_counter))?;
+            shape_counter += 1;
         }
 
         schematic_file.add_page(schematic_page);

@@ -33,11 +33,14 @@ export interface LayerStyle {
 }
 
 export interface LayerStyles {
+  layer_order: string[];
   instance: LayerStyle;
   device: LayerStyle;
   annotate: LayerStyle;
   pin: LayerStyle;
   wire: LayerStyle;
+  wire_show_intersection: boolean;
+  text: LayerStyle;
 }
 
 export const wasmAPI = {

@@ -9,9 +9,19 @@ interface LayerStylesEditorProps {
 
 // Deep comparison function for LayerStyles
 const areStylesEqual = (a: LayerStyles, b: LayerStyles): boolean => {
-  const layers: Array<keyof LayerStyles> = ['instance', 'device', 'annotate', 'pin', 'wire'];
+  // Check layer_order
+  if (JSON.stringify(a.layer_order) !== JSON.stringify(b.layer_order)) {
+    return false;
+  }
   
-  for (const layerKey of layers) {
+  // Check wire_show_intersection
+  if (a.wire_show_intersection !== b.wire_show_intersection) {
+    return false;
+  }
+  
+  const layerKeys: Array<'instance' | 'device' | 'annotate' | 'pin' | 'wire' | 'text'> = ['instance', 'device', 'annotate', 'pin', 'wire', 'text'];
+  
+  for (const layerKey of layerKeys) {
     const layerA = a[layerKey];
     const layerB = b[layerKey];
     
@@ -33,11 +43,14 @@ const areStylesEqual = (a: LayerStyles, b: LayerStyles): boolean => {
 // Helper function to create a deep copy of LayerStyles
 const deepCopyLayerStyles = (styles: LayerStyles): LayerStyles => {
   return {
+    layer_order: [...styles.layer_order],
     instance: { ...styles.instance },
     device: { ...styles.device },
     annotate: { ...styles.annotate },
     pin: { ...styles.pin },
     wire: { ...styles.wire },
+    wire_show_intersection: styles.wire_show_intersection,
+    text: { ...styles.text },
   };
 };
 
@@ -45,7 +58,17 @@ const LayerStylesEditor: React.FC<LayerStylesEditorProps> = ({ styles, onUpdate 
   const [localStyles, setLocalStyles] = useState<LayerStyles>(() => deepCopyLayerStyles(styles));
   const [savedStyles, setSavedStyles] = useState<LayerStyles>(() => deepCopyLayerStyles(styles));
   const [expandedLayer, setExpandedLayer] = useState<string | null>(null);
+  const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
+  const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
+  const draggedLayerNameRef = useRef<string | null>(null);
+  const lastDragOverIndexRef = useRef<number | null>(null);
+  const dragStartPosRef = useRef<{ x: number; y: number; time: number } | null>(null);
+  const originalLayerOrderRef = useRef<string[] | null>(null);
   const isInitialMount = useRef(true);
+  
+  // Drag threshold: minimum distance (in pixels) or time (in ms) to consider it a drag
+  const DRAG_THRESHOLD_DISTANCE = 5;
+  const DRAG_THRESHOLD_TIME = 200;
 
   // Update savedStyles when props.styles changes (from external updates)
   useEffect(() => {
@@ -70,7 +93,7 @@ const LayerStylesEditor: React.FC<LayerStylesEditorProps> = ({ styles, onUpdate 
   // This will be recalculated on every render when localStyles or savedStyles change
   const hasChanges = !areStylesEqual(localStyles, savedStyles);
 
-  const updateLayer = (layerName: keyof LayerStyles, field: string, value: any) => {
+  const updateLayer = (layerName: 'instance' | 'device' | 'annotate' | 'pin' | 'wire' | 'text', field: string, value: any) => {
     const newStyles = {
       ...localStyles,
       [layerName]: {
@@ -81,33 +104,277 @@ const LayerStylesEditor: React.FC<LayerStylesEditorProps> = ({ styles, onUpdate 
     setLocalStyles(newStyles);
   };
 
+  const updateWireShowIntersection = (value: boolean) => {
+    setLocalStyles({
+      ...localStyles,
+      wire_show_intersection: value,
+    });
+  };
+
+  const moveLayer = (layerName: string, direction: 'up' | 'down') => {
+    const currentOrder = [...localStyles.layer_order];
+    const index = currentOrder.indexOf(layerName);
+    
+    if (index === -1) return;
+    
+    if (direction === 'up' && index > 0) {
+      [currentOrder[index], currentOrder[index - 1]] = [currentOrder[index - 1], currentOrder[index]];
+    } else if (direction === 'down' && index < currentOrder.length - 1) {
+      [currentOrder[index], currentOrder[index + 1]] = [currentOrder[index + 1], currentOrder[index]];
+    } else {
+      return;
+    }
+    
+    setLocalStyles({
+      ...localStyles,
+      layer_order: currentOrder,
+    });
+  };
+
+  const handleDragStart = (e: React.DragEvent, index: number) => {
+    // Record initial position and time
+    dragStartPosRef.current = {
+      x: e.clientX,
+      y: e.clientY,
+      time: Date.now(),
+    };
+    
+    // Save original layer order in case we need to revert
+    originalLayerOrderRef.current = [...localStyles.layer_order];
+    
+    const layerName = localStyles.layer_order[index];
+    setDraggedIndex(index);
+    draggedLayerNameRef.current = layerName;
+    lastDragOverIndexRef.current = null;
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/html', ''); // Required for Firefox
+    // Make the dragged element semi-transparent
+    if (e.currentTarget instanceof HTMLElement) {
+      e.currentTarget.style.opacity = '0.5';
+    }
+  };
+
+  const handleDragOver = (e: React.DragEvent, index: number) => {
+    e.preventDefault();
+    
+    // Check if this is actually a drag (not just a click)
+    const dragStart = dragStartPosRef.current;
+    if (dragStart) {
+      const distance = Math.sqrt(
+        Math.pow(e.clientX - dragStart.x, 2) + Math.pow(e.clientY - dragStart.y, 2)
+      );
+      const time = Date.now() - dragStart.time;
+      
+      // If distance is too small and time is too short, treat as click, not drag
+      if (distance < DRAG_THRESHOLD_DISTANCE && time < DRAG_THRESHOLD_TIME) {
+        e.dataTransfer.dropEffect = 'none';
+        return;
+      }
+    }
+    
+    e.dataTransfer.dropEffect = 'move';
+    
+    const draggedLayerName = draggedLayerNameRef.current;
+    if (draggedLayerName === null) {
+      return;
+    }
+
+    // Find current position of dragged layer
+    const currentOrder = [...localStyles.layer_order];
+    const currentDraggedIndex = currentOrder.indexOf(draggedLayerName);
+    
+    if (currentDraggedIndex === -1 || currentDraggedIndex === index) {
+      if (lastDragOverIndexRef.current !== index) {
+        setDragOverIndex(null);
+        lastDragOverIndexRef.current = null;
+      }
+      return;
+    }
+
+    // Only update if the drag over index changed
+    if (lastDragOverIndexRef.current !== index) {
+      setDragOverIndex(index);
+      lastDragOverIndexRef.current = index;
+
+      // Real-time update: calculate new order based on drag position
+      const newOrder = [...currentOrder];
+      
+      // Remove dragged item from its current position
+      newOrder.splice(currentDraggedIndex, 1);
+      
+      // Calculate new position
+      let newIndex = index;
+      if (currentDraggedIndex < index) {
+        // Dragging down, adjust index because we removed the item
+        newIndex = index - 1;
+      }
+      
+      // Insert at new position
+      newOrder.splice(newIndex, 0, draggedLayerName);
+      
+      // Update layer_order in real-time
+      setLocalStyles((prevStyles) => ({
+        ...prevStyles,
+        layer_order: newOrder,
+      }));
+      
+      // Update draggedIndex to reflect the new position
+      setDraggedIndex(newIndex);
+    }
+  };
+
+  const handleDragLeave = () => {
+    // Don't clear dragOverIndex here, as it might interfere with child elements
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    
+    // Check if this was actually a drag or just a click
+    const dragStart = dragStartPosRef.current;
+    const originalOrder = originalLayerOrderRef.current;
+    if (dragStart && originalOrder) {
+      const distance = Math.sqrt(
+        Math.pow(e.clientX - dragStart.x, 2) + Math.pow(e.clientY - dragStart.y, 2)
+      );
+      const time = Date.now() - dragStart.time;
+      
+      // If distance is too small and time is too short, treat as click
+      if (distance < DRAG_THRESHOLD_DISTANCE && time < DRAG_THRESHOLD_TIME) {
+        // Revert any changes made during the "drag"
+        setLocalStyles((prevStyles) => ({
+          ...prevStyles,
+          layer_order: [...originalOrder],
+        }));
+      }
+    }
+    
+    setDraggedIndex(null);
+    setDragOverIndex(null);
+    draggedLayerNameRef.current = null;
+    lastDragOverIndexRef.current = null;
+    dragStartPosRef.current = null;
+    originalLayerOrderRef.current = null;
+    
+    // Reset opacity
+    if (e.currentTarget instanceof HTMLElement) {
+      e.currentTarget.style.opacity = '1';
+    }
+  };
+
+  const handleDragEnd = (e: React.DragEvent) => {
+    // Check if this was actually a drag or just a click
+    const dragStart = dragStartPosRef.current;
+    const originalOrder = originalLayerOrderRef.current;
+    if (dragStart && originalOrder) {
+      const distance = Math.sqrt(
+        Math.pow(e.clientX - dragStart.x, 2) + Math.pow(e.clientY - dragStart.y, 2)
+      );
+      const time = Date.now() - dragStart.time;
+      
+      // If distance is too small and time is too short, treat as click
+      if (distance < DRAG_THRESHOLD_DISTANCE && time < DRAG_THRESHOLD_TIME) {
+        // Revert any changes made during the "drag"
+        setLocalStyles((prevStyles) => ({
+          ...prevStyles,
+          layer_order: [...originalOrder],
+        }));
+      }
+    }
+    
+    setDraggedIndex(null);
+    setDragOverIndex(null);
+    draggedLayerNameRef.current = null;
+    lastDragOverIndexRef.current = null;
+    dragStartPosRef.current = null;
+    originalLayerOrderRef.current = null;
+    
+    // Reset opacity
+    if (e.currentTarget instanceof HTMLElement) {
+      e.currentTarget.style.opacity = '1';
+    }
+  };
+
   const handleSave = () => {
     onUpdate(localStyles);
     setSavedStyles(deepCopyLayerStyles(localStyles));
   };
 
-  const layers: Array<{ key: keyof LayerStyles; label: string }> = [
-    { key: 'instance', label: 'Instance' },
-    { key: 'device', label: 'Device' },
-    { key: 'annotate', label: 'Annotate' },
-    { key: 'pin', label: 'Pin' },
-    { key: 'wire', label: 'Wire' },
-  ];
+  // Layer metadata
+  type LayerKey = 'instance' | 'device' | 'annotate' | 'pin' | 'wire' | 'text';
+  const layerMetadata: Record<string, { key: LayerKey; label: string }> = {
+    instance: { key: 'instance', label: 'Instance' },
+    device: { key: 'device', label: 'Device' },
+    annotate: { key: 'annotate', label: 'Annotate' },
+    pin: { key: 'pin', label: 'Pin' },
+    wire: { key: 'wire', label: 'Wire' },
+    text: { key: 'text', label: 'Text' },
+  };
+
+  // Get layers in the order specified by layer_order
+  const layers = localStyles.layer_order
+    .map((layerName) => layerMetadata[layerName])
+    .filter(Boolean) as Array<{ key: LayerKey; label: string }>;
 
   return (
     <div className="layer-styles-editor">
-      {layers.map(({ key, label }) => {
+      {layers.map(({ key, label }, index) => {
         const layer = localStyles[key];
         const isExpanded = expandedLayer === key;
+        const layerName = localStyles.layer_order[index];
+        const canMoveUp = index > 0;
+        const canMoveDown = index < layers.length - 1;
+        const isDragging = draggedIndex === index;
+        const isDragOver = dragOverIndex === index;
 
         return (
-          <div key={key} className="layer-item">
-            <div
-              className="layer-header"
-              onClick={() => setExpandedLayer(isExpanded ? null : key)}
-            >
-              <span className="layer-name">{label}</span>
-              <span className="expand-icon">{isExpanded ? '▼' : '▶'}</span>
+          <div
+            key={key}
+            className={`layer-item ${isDragging ? 'dragging' : ''} ${isDragOver ? 'drag-over' : ''}`}
+            draggable
+            onDragStart={(e) => handleDragStart(e, index)}
+            onDragOver={(e) => handleDragOver(e, index)}
+            onDragLeave={handleDragLeave}
+            onDrop={handleDrop}
+            onDragEnd={handleDragEnd}
+          >
+            <div className="layer-header">
+              <div className="layer-controls">
+                <button
+                  className="layer-order-btn"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    moveLayer(layerName, 'up');
+                  }}
+                  disabled={!canMoveUp}
+                  title="Move up"
+                >
+                  ↑
+                </button>
+                <button
+                  className="layer-order-btn"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    moveLayer(layerName, 'down');
+                  }}
+                  disabled={!canMoveDown}
+                  title="Move down"
+                >
+                  ↓
+                </button>
+              </div>
+              <span
+                className="layer-name"
+                onClick={() => setExpandedLayer(isExpanded ? null : key)}
+              >
+                {label}
+              </span>
+              <span
+                className="expand-icon"
+                onClick={() => setExpandedLayer(isExpanded ? null : key)}
+              >
+                {isExpanded ? '▼' : '▶'}
+              </span>
             </div>
             {isExpanded && (
               <div className="layer-fields">
@@ -175,6 +442,18 @@ const LayerStylesEditor: React.FC<LayerStylesEditorProps> = ({ styles, onUpdate 
                     Schematic Visible
                   </label>
                 </div>
+                {key === 'wire' && (
+                  <div className="field">
+                    <label>
+                      <input
+                        type="checkbox"
+                        checked={localStyles.wire_show_intersection}
+                        onChange={(e) => updateWireShowIntersection(e.target.checked)}
+                      />
+                      Show Intersection
+                    </label>
+                  </div>
+                )}
               </div>
             )}
           </div>

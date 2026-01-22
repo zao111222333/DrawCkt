@@ -1,6 +1,8 @@
 use drawrs::DrawrsError;
 use thiserror::Error;
 
+use crate::schematic::Layer;
+
 /// Main error type for drawckt crate
 #[derive(Error, Debug)]
 pub enum DrawcktError {
@@ -21,6 +23,9 @@ pub enum DrawcktError {
 
     #[error("Symbol page '{0}' not found in symbols.drawio")]
     SymbolNotFound(String),
+
+    #[error("Repeat layer: {0}")]
+    RepeatLayer(Layer),
 }
 
 /// Convenience type alias for Result

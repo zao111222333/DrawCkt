@@ -181,12 +181,10 @@ impl GroupTransform {
         orient: Orient,
         inst_name: String,
     ) -> Self {
-        dbg!(&inst_name, &origin_bounding_box, offset_y);
         Self {
             origin_bounding_box,
             offset_x,
-            offset_y: offset_y,
-            // offset_y:offset_y+(offset_y+origin_bounding_box.height())/2.0,
+            offset_y,
             orient,
             inst_name,
         }
