@@ -7,6 +7,11 @@
   flex-direction: column;
   min-height: 0;
   height: 0; /* Force flex child to respect parent constraints */
+  transition: background-color 0.3s ease;
+}
+
+:root.dark-mode .settings-panel {
+  background: #2d2d2d;
 }
 
 .settings-content {
@@ -35,6 +40,11 @@
   position: relative;
 }
 
+:root.dark-mode .upload-dropzone {
+  border-color: #404040;
+  background: #1a1a1a;
+}
+
 .upload-dropzone:hover {
   border-color: #007bff;
   background: #f0f7ff;
@@ -51,9 +61,19 @@
   background: #f0fff4;
 }
 
+:root.dark-mode .upload-dropzone.success {
+  border-color: #28a745;
+  background: #1a3d2a;
+}
+
 .upload-dropzone.error {
   border-color: #dc3545;
   background: #fff5f5;
+}
+
+:root.dark-mode .upload-dropzone.error {
+  border-color: #dc3545;
+  background: #3d1a1a;
 }
 
 .upload-icon {
@@ -67,11 +87,21 @@
   font-weight: 600;
   color: #212529;
   margin-bottom: 8px;
+  transition: color 0.3s ease;
+}
+
+:root.dark-mode .upload-text {
+  color: #e0e0e0;
 }
 
 .upload-hint {
   font-size: 13px;
   color: #6c757d;
+  transition: color 0.3s ease;
+}
+
+:root.dark-mode .upload-hint {
+  color: #a0a0a0;
 }
 
 .upload-status-inline {
@@ -99,6 +129,12 @@
   padding: 16px;
   background: #ffffff;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  transition: background-color 0.3s ease, border-color 0.3s ease;
+}
+
+:root.dark-mode .settings-section {
+  border-color: #404040;
+  background: #2d2d2d;
 }
 
 .settings-section h3 {
@@ -107,6 +143,11 @@
   margin: 0 0 16px 0;
   color: #212529;
   letter-spacing: -0.01em;
+  transition: color 0.3s ease;
+}
+
+:root.dark-mode .settings-section h3 {
+  color: #e0e0e0;
 }
 
 .info-text {
@@ -114,6 +155,11 @@
   color: #6c757d;
   font-style: italic;
   line-height: 1.5;
+  transition: color 0.3s ease;
+}
+
+:root.dark-mode .info-text {
+  color: #a0a0a0;
 }
 
 .export-btn {
@@ -132,15 +178,19 @@
 .export-btn.enabled {
   opacity: 1;
   cursor: pointer;
+  background-color: #28a745;
+  color: #ffffff;
 }
 
 .export-btn.enabled:hover {
-  background-color: #ffca2c;
+  background-color: #ffc107;
+  color: #212529;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 .export-btn.enabled:active {
   background-color: #ffb300;
+  color: #212529;
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
 }
 
@@ -161,6 +211,11 @@
   color: #495057;
   line-height: 1.6;
   margin: 0;
+  transition: color 0.3s ease;
+}
+
+:root.dark-mode .about-description {
+  color: #b0b0b0;
 }
 
 .doc-link {
@@ -197,6 +252,12 @@
   transition: all 0.2s ease;
 }
 
+:root.dark-mode .demo-select {
+  border-color: #404040;
+  background: #2d2d2d;
+  color: #e0e0e0;
+}
+
 .demo-select:hover {
   border-color: #007bff;
 }
@@ -227,5 +288,15 @@
   font-size: 13px;
   color: #6c757d;
   font-weight: 500;
+  transition: color 0.3s ease;
+}
+
+:root.dark-mode .divider-text {
+  color: #a0a0a0;
+}
+
+:root.dark-mode .upload-divider::before,
+:root.dark-mode .upload-divider::after {
+  background: #404040;
 }
 

@@ -24,6 +24,11 @@
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
   position: relative;
   z-index: 100000;
+  transition: background-color 0.3s ease;
+}
+
+:root.dark-mode .symbol-editor-container {
+  background-color: #2d2d2d;
 }
 
 .symbol-editor-header {
@@ -34,6 +39,12 @@
   border-bottom: 1px solid #e0e0e0;
   background-color: #f5f5f5;
   border-radius: 8px 8px 0 0;
+  transition: background-color 0.3s ease, border-color 0.3s ease;
+}
+
+:root.dark-mode .symbol-editor-header {
+  background-color: #1a1a1a;
+  border-bottom-color: #404040;
 }
 
 .symbol-editor-header h3 {
@@ -41,6 +52,11 @@
   font-size: 16px;
   font-weight: 600;
   color: #333;
+  transition: color 0.3s ease;
+}
+
+:root.dark-mode .symbol-editor-header h3 {
+  color: #e0e0e0;
 }
 
 .symbol-editor-close-btn {
@@ -65,6 +81,15 @@
   color: #333;
 }
 
+:root.dark-mode .symbol-editor-close-btn {
+  color: #b0b0b0;
+}
+
+:root.dark-mode .symbol-editor-close-btn:hover {
+  background-color: #333333;
+  color: #e0e0e0;
+}
+
 .symbol-editor-content {
   flex: 1;
   position: relative;
@@ -79,6 +104,11 @@
   min-width: 800px;
   min-height: 600px;
   background-color: #ffffff;
+  transition: background-color 0.3s ease;
+}
+
+:root.dark-mode .symbol-editor-iframe {
+  background-color: #2d2d2d;
 }
 
 .symbol-editor-loading {
@@ -89,6 +119,11 @@
   text-align: center;
   color: #666;
   font-size: 14px;
+  transition: color 0.3s ease;
+}
+
+:root.dark-mode .symbol-editor-loading {
+  color: #a0a0a0;
 }
 
 .symbol-editor-loading::after {

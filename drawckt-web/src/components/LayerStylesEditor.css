@@ -15,6 +15,11 @@
   position: relative;
 }
 
+:root.dark-mode .layer-item {
+  border-color: #404040;
+  background: #2d2d2d;
+}
+
 .layer-item:active {
   cursor: grabbing;
 }
@@ -50,6 +55,10 @@
   cursor: pointer;
 }
 
+:root.dark-mode .layer-header {
+  background: #1a1a1a;
+}
+
 .layer-controls {
   display: flex;
   gap: 4px;
@@ -72,6 +81,12 @@
   transition: all 0.2s ease;
 }
 
+:root.dark-mode .layer-order-btn {
+  border-color: #404040;
+  background: #2d2d2d;
+  color: #b0b0b0;
+}
+
 .layer-order-btn:hover:not(:disabled) {
   background: #e9ecef;
   border-color: #adb5bd;
@@ -91,16 +106,35 @@
   background: #e9ecef;
 }
 
+:root.dark-mode .layer-header:hover {
+  background: #333333;
+}
+
+:root.dark-mode .layer-order-btn:hover:not(:disabled) {
+  background: #333333;
+  border-color: #505050;
+}
+
 .layer-name {
   font-weight: 500;
   font-size: 14px;
   color: #212529;
+  transition: color 0.3s ease;
+}
+
+:root.dark-mode .layer-name {
+  color: #e0e0e0;
 }
 
 .expand-icon {
   font-size: 11px;
   color: #6c757d;
   cursor: pointer;
+  transition: color 0.3s ease;
+}
+
+:root.dark-mode .expand-icon {
+  color: #a0a0a0;
 }
 
 .layer-fields {
@@ -109,6 +143,11 @@
   flex-direction: column;
   gap: 12px;
   background: #ffffff;
+  transition: background-color 0.3s ease;
+}
+
+:root.dark-mode .layer-fields {
+  background: #2d2d2d;
 }
 
 .field {
@@ -123,6 +162,11 @@
   padding-right: 6px;
   color: #495057;
   font-weight: 500;
+  transition: color 0.3s ease;
+}
+
+:root.dark-mode .field label {
+  color: #b0b0b0;
 }
 
 .field input[type="color"] {
@@ -149,7 +193,15 @@
   border-radius: 6px;
   font-size: 13px;
   font-family: 'SF Mono', 'Monaco', 'Cascadia Code', 'Courier New', monospace;
-  transition: border-color 0.2s ease;
+  transition: border-color 0.2s ease, background-color 0.3s ease, color 0.3s ease;
+  background: #ffffff;
+  color: #212529;
+}
+
+:root.dark-mode .field input[type="text"].color-text {
+  border-color: #404040;
+  background: #1a1a1a;
+  color: #e0e0e0;
 }
 
 .field input[type="text"].color-text:focus {
@@ -165,7 +217,15 @@
   border: 1px solid #e9ecef;
   border-radius: 6px;
   font-size: 13px;
-  transition: border-color 0.2s ease;
+  transition: border-color 0.2s ease, background-color 0.3s ease, color 0.3s ease;
+  background: #ffffff;
+  color: #212529;
+}
+
+:root.dark-mode .field input[type="number"] {
+  border-color: #404040;
+  background: #1a1a1a;
+  color: #e0e0e0;
 }
 
 .field input[type="number"]:focus {

@@ -20,6 +20,35 @@ function App() {
   const [symbolsRefreshKey, setSymbolsRefreshKey] = useState(0);
   const [editingSymbol, setEditingSymbol] = useState<{ lib: string; cell: string; content: string } | null>(null);
   const [editingSchematic, setEditingSchematic] = useState<{ content: string } | null>(null);
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  
+  // Dark mode state - load from localStorage or default to true
+  const [isDarkMode, setIsDarkMode] = useState(() => {
+    const saved = localStorage.getItem('darkMode');
+    return saved !== null ? JSON.parse(saved) : true;
+  });
+
+  // Handle dark mode toggle
+  const toggleDarkMode = () => {
+    const newMode = !isDarkMode;
+    setIsDarkMode(newMode);
+    localStorage.setItem('darkMode', JSON.stringify(newMode));
+    // Apply dark mode class to document root
+    if (newMode) {
+      document.documentElement.classList.add('dark-mode');
+    } else {
+      document.documentElement.classList.remove('dark-mode');
+    }
+  };
+
+  // Apply dark mode class on mount and when isDarkMode changes
+  useEffect(() => {
+    if (isDarkMode) {
+      document.documentElement.classList.add('dark-mode');
+    } else {
+      document.documentElement.classList.remove('dark-mode');
+    }
+  }, [isDarkMode]);
 
   // Handle browser navigation
   useEffect(() => {
@@ -36,6 +65,24 @@ function App() {
       window.removeEventListener('pathchange', handlePathChange);
     };
   }, []);
+
+  // Handle beforeunload to warn about unsaved changes
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      // Only show warning if export is enabled (canExport) and there are unsaved changes
+      if (schematicReady && hasUnsavedChanges) {
+        // Modern browsers ignore custom messages, but we still need to set returnValue
+        e.preventDefault();
+        e.returnValue = '';
+        return '';
+      }
+    };
+    
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    };
+  }, [schematicReady, hasUnsavedChanges]);
 
   // Keep refs in sync with state
   useEffect(() => {
@@ -246,6 +293,7 @@ function App() {
     // Layer styles are preserved (not cleared)
     setSymbols([]);
     setSchematicReady(false);
+    setHasUnsavedChanges(false); // Reset unsaved changes when loading new schematic
     
     try {
       const result = await wasmAPI.processSchematicJson(jsonContent, filename);
@@ -271,6 +319,7 @@ function App() {
     // Layer styles will be restored from ZIP
     setSymbols([]);
     setSchematicReady(false);
+    setHasUnsavedChanges(false); // Reset unsaved changes when loading new schematic
     
     try {
       const result = await wasmAPI.processSchematicZip(base64Zip, filename);
@@ -302,6 +351,7 @@ function App() {
     // Layer styles are preserved (not cleared)
     setSymbols([]);
     setSchematicReady(false);
+    setHasUnsavedChanges(false); // Reset unsaved changes when clearing
   };
 
   const handleExport = async () => {
@@ -345,6 +395,9 @@ function App() {
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
+      
+      // Mark changes as saved after successful export
+      setHasUnsavedChanges(false);
     } catch (error) {
       console.error('Failed to export files:', error);
       alert(`Failed to export files: ${error}`);
@@ -357,6 +410,8 @@ function App() {
       setLayerStyles(styles);
       // Re-process schematic if it exists
       if (schematicReady) {
+        // Mark as having unsaved changes
+        setHasUnsavedChanges(true);
         // If only sch_visible changed, don't refresh symbols list
         if (!result.only_sch_visible_changed) {
           const allSymbols = await wasmAPI.getAllSymbols();
@@ -381,6 +436,13 @@ function App() {
         title={menuVisible ? 'Hide menu' : 'Show menu'}
       >
         {menuVisible ? '◀' : '▶'}
+      </button>
+      <button
+        className="dark-mode-toggle-btn"
+        onClick={toggleDarkMode}
+        title={isDarkMode ? 'Switch to light mode' : 'Switch to dark mode'}
+      >
+        {isDarkMode ? '☀️' : '🌙'}
       </button>
       <div className="app-layout">
         {menuVisible && (
@@ -456,6 +518,10 @@ function App() {
               }
             }}
             onSymbolUpdated={async (lib?: string, cell?: string) => {
+              // Mark as having unsaved changes
+              if (schematicReady) {
+                setHasUnsavedChanges(true);
+              }
               // If lib and cell are provided, only refresh that symbol and schematic
               // Otherwise, refresh all symbols and schematic
               if (lib && cell) {
@@ -511,6 +577,7 @@ function App() {
           <SchematicView 
             ready={schematicReady} 
             refreshKey={schematicRefreshKey}
+            isDarkMode={isDarkMode}
             onEditSchematic={async () => {
               try {
                 const content = await wasmAPI.getSchematicContent();
@@ -521,6 +588,10 @@ function App() {
               }
             }}
             onSchematicUpdated={async () => {
+              // Mark as having unsaved changes
+              if (schematicReady) {
+                setHasUnsavedChanges(true);
+              }
               // Refresh schematic view
               setSchematicRefreshKey(prev => prev + 1);
             }}
@@ -532,10 +603,15 @@ function App() {
           lib={editingSymbol.lib}
           cell={editingSymbol.cell}
           content={editingSymbol.content}
+          isDarkMode={isDarkMode}
           onSave={async (lib: string, cell: string, newContent: string) => {
             try {
               await wasmAPI.updateSymbolContent(lib, cell, newContent);
               setEditingSymbol(null);
+              // Mark as having unsaved changes
+              if (schematicReady) {
+                setHasUnsavedChanges(true);
+              }
               // Re-fetch symbols and refresh both symbols and schematic
               const allSymbols = await wasmAPI.getAllSymbols();
               setSymbols(allSymbols);
@@ -558,10 +634,15 @@ function App() {
           lib=""
           cell="Schematic"
           content={editingSchematic.content}
+          isDarkMode={isDarkMode}
           onSave={async (_lib: string, _cell: string, newContent: string) => {
             try {
               await wasmAPI.updateSchematicContent(newContent);
               setEditingSchematic(null);
+              // Mark as having unsaved changes
+              if (schematicReady) {
+                setHasUnsavedChanges(true);
+              }
               // Refresh schematic view
               setTimeout(() => {
                 setSchematicRefreshKey(prev => prev + 1);

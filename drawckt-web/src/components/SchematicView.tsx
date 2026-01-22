@@ -8,9 +8,10 @@ interface SchematicViewProps {
   refreshKey?: number; // Key to force re-render
   onEditSchematic?: () => void; // Callback when edit button is clicked
   onSchematicUpdated?: () => void; // Callback when schematic is updated (for undo/redo)
+  isDarkMode?: boolean; // Dark mode state
 }
 
-const SchematicView: React.FC<SchematicViewProps> = ({ ready, refreshKey, onEditSchematic, onSchematicUpdated }) => {
+const SchematicView: React.FC<SchematicViewProps> = ({ ready, refreshKey, onEditSchematic, onSchematicUpdated, isDarkMode = false }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const viewerInstanceRef = useRef<any>(null);
@@ -184,6 +185,9 @@ const SchematicView: React.FC<SchematicViewProps> = ({ ready, refreshKey, onEdit
                   // Add class for styling
                   toolbar.classList.add('schematic-toolbar-fixed');
                   
+                  // Set color-scheme based on dark mode
+                  toolbar.style.colorScheme = isDarkMode ? 'dark' : 'light';
+                  
                   // Create action buttons container - positioned absolutely to float over toolbar
                   const actionsContainer = document.createElement('div');
                   actionsContainer.className = 'schematic-actions';
@@ -291,7 +295,7 @@ const SchematicView: React.FC<SchematicViewProps> = ({ ready, refreshKey, onEdit
     loadViewer();
     
     return cleanup;
-  }, [ready, refreshKey]);
+  }, [ready, refreshKey, isDarkMode]);
 
 
   // Handle mouse drag to pan
@@ -401,6 +405,14 @@ const SchematicView: React.FC<SchematicViewProps> = ({ ready, refreshKey, onEdit
       updateSchematicHistory();
     }
   }, [ready, refreshKey]);
+
+  // Update toolbar color-scheme when dark mode changes
+  useEffect(() => {
+    const fixedToolbars = document.querySelectorAll('.schematic-toolbar-fixed');
+    fixedToolbars.forEach((toolbar) => {
+      (toolbar as HTMLElement).style.colorScheme = isDarkMode ? 'dark' : 'light';
+    });
+  }, [isDarkMode]);
 
   // Remove schematic-toolbar-fixed when schematic-view becomes empty
   useEffect(() => {

@@ -7,9 +7,10 @@ interface SymbolEditorProps {
   content: string;
   onSave: (lib: string, cell: string, newContent: string) => void;
   onClose: () => void;
+  isDarkMode?: boolean; // Dark mode state
 }
 
-const SymbolEditor: React.FC<SymbolEditorProps> = ({ lib, cell, content, onSave, onClose }) => {
+const SymbolEditor: React.FC<SymbolEditorProps> = ({ lib, cell, content, onSave, onClose, isDarkMode = false }) => {
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const isInitializedRef = useRef(false);
   const currentContentRef = useRef(content);
@@ -37,11 +38,17 @@ const SymbolEditor: React.FC<SymbolEditorProps> = ({ lib, cell, content, onSave,
 
     const iframe = iframeRef.current;
     
-    if (!isInitializedRef.current) {
+    // Re-initialize if dark mode changes after initial load
+    // This ensures the theme is applied when user switches dark mode while editor is open
+    const shouldReinit = isInitializedRef.current && editorReadyRef.current;
+    
+    if (!isInitializedRef.current || shouldReinit) {
       // Use embed.diagrams.net which is specifically designed for embedding
       // and doesn't have CSP frame-ancestors restrictions
       // protoVersion=1 is important for newer versions
-      const embedUrl = 'https://embed.diagrams.net/?embed=1&proto=json&configure=1&ui=atlas&noSaveBtn=1&noExitBtn=1&spin=1&protoVersion=1';
+      // Set UI theme based on dark mode: 'dark' for dark mode, 'atlas' for light mode
+      const uiTheme = isDarkMode ? 'dark' : 'atlas';
+      const embedUrl = `https://embed.diagrams.net/?embed=1&proto=json&configure=1&ui=${uiTheme}&noSaveBtn=1&noExitBtn=1&spin=1&protoVersion=1`;
       iframe.src = embedUrl;
       isInitializedRef.current = true;
       editorReadyRef.current = false;
@@ -111,7 +118,11 @@ const SymbolEditor: React.FC<SymbolEditorProps> = ({ lib, cell, content, onSave,
         if (iframe.contentWindow) {
           const configResponse = {
             action: 'configure',
-            config: {}, // Empty config object, can be customized if needed
+            config: {
+              // Set theme based on dark mode
+              // draw.io uses 'defaultTheme' or 'theme' property to set the UI theme
+              defaultTheme: isDarkMode ? 'dark' : 'atlas',
+            },
           };
           // Send as JSON string - draw.io seems to expect this format
           iframe.contentWindow.postMessage(JSON.stringify(configResponse), '*');
@@ -172,7 +183,7 @@ const SymbolEditor: React.FC<SymbolEditorProps> = ({ lib, cell, content, onSave,
       iframe.removeEventListener('error', handleIframeError);
       editorReadyRef.current = false;
     };
-  }, [lib, cell, onSave, onClose]);
+  }, [lib, cell, onSave, onClose, isDarkMode]);
 
   return (
     <div className="symbol-editor-overlay">

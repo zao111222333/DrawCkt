@@ -9,6 +9,11 @@
   background: #ffffff;
   min-height: 0;
   height: 0; /* Force flex item to respect container height */
+  transition: background-color 0.3s ease;
+}
+
+:root.dark-mode .symbols-list {
+  background: #2d2d2d;
 }
 
 .symbols-list.empty {
@@ -23,6 +28,11 @@
   font-size: 15px;
   text-align: center;
   font-weight: 400;
+  transition: color 0.3s ease;
+}
+
+:root.dark-mode .empty-message {
+  color: #a0a0a0;
 }
 
 .symbol-item {
@@ -31,12 +41,17 @@
   overflow: hidden;
   background: #ffffff;
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
-  transition: box-shadow 0.2s ease, border-color 0.2s ease;
+  transition: box-shadow 0.2s ease, border-color 0.2s ease, background-color 0.3s ease;
   display: flex;
   flex-direction: column;
   margin: 0;
   align-items: center;
   flex-shrink: 0; /* Prevent compression, height should be determined by drawio content */
+}
+
+:root.dark-mode .symbol-item {
+  border-color: #404040;
+  background: #2d2d2d;
 }
 
 .symbol-item:hover {
@@ -55,6 +70,12 @@
   justify-content: space-between;
   width: 100%;
   gap: 8px;
+  transition: background-color 0.3s ease, border-color 0.3s ease;
+}
+
+:root.dark-mode .symbol-header {
+  background: #1a1a1a;
+  border-bottom-color: #404040;
 }
 
 .symbol-name {
@@ -68,6 +89,11 @@
   overflow: hidden;
   text-overflow: ellipsis;
   flex: 1;
+  transition: color 0.3s ease;
+}
+
+:root.dark-mode .symbol-name {
+  color: #b0b0b0;
 }
 
 .symbol-actions {
@@ -146,6 +172,11 @@
   background: #ffffff;
   overflow: hidden;
   flex-shrink: 0; /* Prevent compression, height should be determined by drawio content */
+  transition: background-color 0.3s ease;
+}
+
+:root.dark-mode .mxgraph-wrapper {
+  background: #1a1a1a;
 }
 
 .symbol-item .mxgraph {
@@ -159,6 +190,11 @@
   flex-shrink: 0;
   display: block;
   text-align: center;
+  transition: background-color 0.3s ease;
+}
+
+:root.dark-mode .symbol-item .mxgraph {
+  background: #1a1a1a;
 }
 
 .symbol-item .mxgraph > *,

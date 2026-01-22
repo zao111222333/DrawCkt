@@ -7,6 +7,11 @@
   min-height: 0;
   width: 100%;
   height: 100%;
+  transition: background-color 0.3s ease;
+}
+
+:root.dark-mode .schematic-view-scroll-container {
+  background: #1a1a1a;
 }
 
 /* Scroll container - content scrolls here */
@@ -23,6 +28,11 @@
   width: 100%;
   height: 100%;
   -webkit-overflow-scrolling: touch;
+  transition: background-color 0.3s ease;
+}
+
+:root.dark-mode .schematic-view {
+  background: #1a1a1a;
 }
 
 .schematic-view.empty {
@@ -32,11 +42,20 @@
   min-height: 400px;
 }
 
+:root.dark-mode .schematic-view.empty {
+  background: #2d2d2d;
+}
+
 .empty-message {
   color: #6c757d;
   font-size: 15px;
   text-align: center;
   font-weight: 400;
+  transition: color 0.3s ease;
+}
+
+:root.dark-mode .empty-message {
+  color: #a0a0a0;
 }
 
 .schematic-view .mxgraph {
@@ -51,6 +70,11 @@
   min-height: 0;
   box-shadow: none;
   position: relative;
+  transition: background-color 0.3s ease;
+}
+
+:root.dark-mode .schematic-view .mxgraph {
+  background: #1a1a1a;
 }
 
 /* Fixed toolbar wrapper in scroll container */
@@ -71,6 +95,13 @@
   min-width: 100% !important;
   max-width: 100% !important;
   box-sizing: border-box !important;
+}
+
+/* Make toolbar icons bright in dark mode */
+:root.dark-mode .schematic-view-scroll-container .schematic-toolbar-fixed img,
+:root.dark-mode .schematic-view-scroll-container .schematic-toolbar-fixed .geAdaptiveAsset {
+  filter: invert(1) brightness(1.2);
+  transition: filter 0.3s ease;
 }
 
 /* Action buttons - float over toolbar on the right */
