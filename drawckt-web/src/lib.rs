@@ -635,6 +635,7 @@ pub fn update_layer_styles(styles_json: &str) -> Result<JsValue, JsValue> {
                 old.stroke_color == new.stroke_color
                     && (old.stroke_width - new.stroke_width).abs() < f64::EPSILON
                     && old.text_color == new.text_color
+                    && old.font_family == new.font_family
                     && (old.font_zoom - new.font_zoom).abs() < f64::EPSILON
             };
 

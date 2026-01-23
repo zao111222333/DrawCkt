@@ -531,9 +531,10 @@ impl<'a> Renderer<'a> {
                 height,
                 justify,
             } => {
+                let layer_style = self.get_layer_style(layer);
                 let mut x = xy[0] * SCALE;
                 let mut y = flip_y(xy[1]);
-                let font_height = height * SCALE;
+                let font_height = 1.2 * height * SCALE * layer_style.font_zoom;
                 let font_width = font_height * text.len() as f64 / 2.0;
                 {
                     // Adjust x based on JustifyX
@@ -561,7 +562,6 @@ impl<'a> Renderer<'a> {
                         }
                     }
                 }
-                let layer_style = self.get_layer_style(layer);
                 let mut obj = Object::new(Some(obj_id));
                 obj.set_value(text.clone());
                 obj.set_position([x, y]);
@@ -570,7 +570,8 @@ impl<'a> Renderer<'a> {
                 obj.set_fill_color(Some("none".to_string()));
                 obj.set_stroke_color(Some("none".to_string()));
                 obj.set_font_color(Some(layer_style.text_color.clone()));
-                obj.set_font_size(Some(font_height * layer_style.font_zoom));
+                obj.set_font_size(Some(font_height));
+                obj.set_font_family(Some(layer_style.font_family.clone()));
                 obj.set_xml_parent(Some(layer.id()));
                 obj.set_justify(*justify);
                 obj.apply_style_property("spacing", "0");
@@ -764,8 +765,7 @@ impl<'a> Renderer<'a> {
         }
 
         // Render pins in pin layer
-        let mut pin_counter = 0;
-        for pin in &self.schematic.pins {
+        for (i, pin) in self.schematic.pins.iter().enumerate() {
             self.render_shape(
                 &Shape::Label {
                     layer: Layer::Pin,
@@ -780,38 +780,23 @@ impl<'a> Renderer<'a> {
                 },
                 &mut schematic_page,
                 &flip_y,
-                format!("pin-{}", pin_counter),
+                format!("pin-{i}"),
             )?;
-            pin_counter += 1;
         }
 
         // Render labels
-        let mut label_counter = 0;
-        for label in &self.schematic.labels {
-            self.render_shape(
-                label,
-                &mut schematic_page,
-                &flip_y,
-                format!("label-{}", label_counter),
-            )?;
-            label_counter += 1;
+        for (i, label) in self.schematic.labels.iter().enumerate() {
+            self.render_shape(label, &mut schematic_page, &flip_y, format!("label-{i}"))?;
         }
 
         // Render shapes (with wire_show_intersection check)
-        let mut shape_counter = 0;
-        for shape in &self.schematic.shapes {
+        for (i, shape) in self.schematic.shapes.iter().enumerate() {
             // Skip wire layer shapes if wire_show_intersection is false
             if shape.layer().eq(&Layer::Wire) && !self.layer_styles.wire_show_intersection {
                 continue;
             }
 
-            self.render_shape(
-                shape,
-                &mut schematic_page,
-                &flip_y,
-                format!("shape-{}", shape_counter),
-            )?;
-            shape_counter += 1;
+            self.render_shape(shape, &mut schematic_page, &flip_y, format!("shape-{i}"))?;
         }
 
         schematic_file.add_page(schematic_page);

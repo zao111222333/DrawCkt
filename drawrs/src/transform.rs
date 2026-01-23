@@ -1,6 +1,11 @@
 use std::fmt;
 
-use crate::{DiagramObject, DrawrsError::UnsupportedOrient, DrawrsResult};
+use crate::{
+    DiagramObject,
+    DrawrsError::UnsupportedOrient,
+    DrawrsResult,
+    diagram::text_format::{Justify, JustifyX},
+};
 
 #[derive(Debug, Clone, Copy)]
 pub enum Orient {
@@ -263,15 +268,52 @@ impl<'a> GroupTransform<'a> {
         }
         Ok(())
     }
+
+    fn update_justify(&self, justify: Option<&mut Justify>) -> DrawrsResult<()> {
+        // Bounding boxes and flip rotations keep their original values within the group
+        if let Some(justify) = justify {
+            match self.orient {
+                Orient::R0 => {}
+                Orient::R90 => {
+                    return Err(UnsupportedOrient(self.orient));
+                }
+                Orient::R180 => {
+                    return Err(UnsupportedOrient(self.orient));
+                }
+                Orient::R270 => {
+                    return Err(UnsupportedOrient(self.orient));
+                }
+                Orient::MY => {
+                    justify.x = match justify.x {
+                        JustifyX::Left => JustifyX::Right,
+                        JustifyX::Center => JustifyX::Center,
+                        JustifyX::Right => JustifyX::Left,
+                    };
+                }
+                Orient::MX => {
+                    return Err(UnsupportedOrient(self.orient));
+                }
+                Orient::MYR90 => {
+                    return Err(UnsupportedOrient(self.orient));
+                }
+                Orient::MXR90 => {
+                    return Err(UnsupportedOrient(self.orient));
+                }
+            }
+        }
+        Ok(())
+    }
     pub fn new_obj(&self, obj: &DiagramObject) -> DrawrsResult<DiagramObject> {
         let mut new_obj: DiagramObject = obj.clone();
         new_obj.set_id(format!("{}-{}", self.inst_name, new_obj.id()));
         self.update_text(new_obj.text_mut());
         new_obj.set_tag(Some(self.inst_name.to_owned()));
+
         if let Some(parent) = new_obj.xml_parent() {
             if parent.starts_with("layer-") {
                 self.update_points(new_obj.mut_points())?;
                 self.update_box(new_obj.mut_box())?;
+                self.update_justify(new_obj.justify_mut())?;
             }
         }
         Ok(new_obj)

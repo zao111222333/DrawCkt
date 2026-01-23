@@ -146,6 +146,7 @@ impl Default for Justify {
 pub struct TextFormat {
     font_size: Option<f64>,
     font_color: Option<String>,
+    font_family: Option<String>,
     justify: Justify,
     // bold: bool,
     // italic: bool,
@@ -157,6 +158,7 @@ impl TextFormat {
         Self {
             font_size: None,
             font_color: None,
+            font_family: None,
             justify: Justify::new(),
             // bold: false,
             // italic: false,
@@ -178,6 +180,14 @@ impl TextFormat {
 
     pub fn set_font_size(&mut self, size: Option<f64>) {
         self.font_size = size;
+    }
+
+    pub fn font_family(&self) -> Option<&String> {
+        self.font_family.as_ref()
+    }
+
+    pub fn set_font_family(&mut self, family: Option<String>) {
+        self.font_family = family;
     }
 
     pub fn justify(&self) -> &Justify {

@@ -234,6 +234,109 @@
   box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
 }
 
+.font-input-wrapper {
+  position: relative;
+  width: 100%;
+}
+
+.font-input {
+  width: 100%;
+  max-width: 200px;
+  padding: 8px 12px;
+  border: 1px solid #e9ecef;
+  border-radius: 6px;
+  font-size: 13px;
+  transition: border-color 0.2s ease, background-color 0.3s ease, color 0.3s ease, box-shadow 0.2s ease;
+  background: #ffffff;
+  color: #212529;
+  font-family: inherit;
+}
+
+:root.dark-mode .font-input {
+  border-color: #404040;
+  background: #1a1a1a;
+  color: #e0e0e0;
+}
+
+.font-input:hover {
+  border-color: #dee2e6;
+}
+
+:root.dark-mode .font-input:hover {
+  border-color: #505050;
+}
+
+.font-input:focus {
+  outline: none;
+  border-color: #007bff;
+  box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
+}
+
+.font-input::placeholder {
+  color: #adb5bd;
+  opacity: 1;
+}
+
+:root.dark-mode .font-input::placeholder {
+  color: #6c757d;
+}
+
+.font-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  max-height: 200px;
+  overflow-y: auto;
+  background: #ffffff;
+  border: 1px solid #e9ecef;
+  border-radius: 6px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  z-index: 1000;
+  margin-top: 4px;
+  transition: background-color 0.3s ease, border-color 0.3s ease;
+}
+
+:root.dark-mode .font-dropdown {
+  background: #2d2d2d;
+  border-color: #404040;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+}
+
+.font-option {
+  padding: 8px 12px;
+  cursor: pointer;
+  font-size: 13px;
+  color: #212529;
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+:root.dark-mode .font-option {
+  color: #e0e0e0;
+}
+
+.font-option:hover,
+.font-option.highlighted {
+  background: #f0f8ff;
+  color: #007bff;
+}
+
+:root.dark-mode .font-option:hover,
+:root.dark-mode .font-option.highlighted {
+  background: #333333;
+  color: #4da6ff;
+}
+
+.font-option:first-child {
+  border-top-left-radius: 6px;
+  border-top-right-radius: 6px;
+}
+
+.font-option:last-child {
+  border-bottom-left-radius: 6px;
+  border-bottom-right-radius: 6px;
+}
+
 .field input[type="checkbox"] {
   margin-right: 8px;
   width: 18px;

@@ -198,8 +198,19 @@ impl Object {
         self.text_format.set_font_size(size);
     }
 
+    pub fn font_family(&self) -> Option<&String> {
+        self.text_format.font_family()
+    }
+
+    pub fn set_font_family(&mut self, family: Option<String>) {
+        self.text_format.set_font_family(family);
+    }
+
     pub fn set_justify(&mut self, justify: Justify) {
         self.text_format.set_justify(justify);
+    }
+    pub fn justify_mut(&mut self) -> &mut Justify {
+        self.text_format.justify_mut()
     }
 
     pub fn rounded(&self) -> Option<bool> {
@@ -258,6 +269,7 @@ impl Object {
                     self.text_format.set_font_size(Some(fs));
                 }
             }
+            "fontFamily" => self.text_format.set_font_family(Some(value.to_string())),
             "align" | "verticalAlign" => {
                 // Handle justify - need to parse both align and verticalAlign together
                 // This is handled in parse_and_set_style
@@ -527,6 +539,9 @@ impl<'a> fmt::Display for ObjectStyleFormatter<'a> {
         }
         if let Some(fs) = self.0.text_format.font_size() {
             write!(f, "fontSize={};", fs)?;
+        }
+        if let Some(ff) = self.0.text_format.font_family() {
+            write!(f, "fontFamily={};", ff)?;
         }
 
         // Add justify properties (align and verticalAlign)

@@ -1,4 +1,4 @@
-use crate::BoundingBox;
+use crate::{BoundingBox, diagram::text_format::Justify};
 use crate::transform::FlipRotation;
 use crate::xml_base::XMLBase;
 use itertools::Either;
@@ -180,6 +180,12 @@ impl DiagramObject {
 
     pub fn set_text(&mut self, text: String) {
         self.base_mut().value = Some(text);
+    }
+
+    pub fn justify_mut(&mut self) -> Option<&mut Justify> {
+        if let Self::Object(obj) = self{
+            Some(obj.justify_mut())
+        }else{None}
     }
 
     pub fn text_mut(&mut self) -> Option<&mut String> {

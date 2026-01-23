@@ -34,6 +34,7 @@ const areStylesEqual = (a: LayerStyles, b: LayerStyles): boolean => {
       Math.abs(layerA.stroke_width - layerB.stroke_width) > Number.EPSILON ||
       layerA.text_color !== layerB.text_color ||
       Math.abs(layerA.font_zoom - layerB.font_zoom) > Number.EPSILON ||
+      layerA.font_family !== layerB.font_family ||
       layerA.priority !== layerB.priority ||
       layerA.sch_visible !== layerB.sch_visible
     ) {
@@ -56,6 +57,176 @@ const deepCopyLayerStyles = (styles: LayerStyles): LayerStyles => {
     wire_show_intersection: styles.wire_show_intersection,
     text: { ...styles.text },
   };
+};
+
+// Recommended font list
+const RECOMMENDED_FONTS = [
+  'Verdana',
+  'Times New Roman',
+  'Arial',
+  'Helvetica',
+  'Georgia',
+  'Courier New',
+  'Comic Sans MS',
+  'Trebuchet MS',
+  'Impact',
+  'Lucida Console',
+  'Palatino',
+  'Garamond',
+  'Bookman',
+  'Tahoma',
+  'Monaco',
+  'Menlo',
+  'SF Mono',
+];
+
+// Custom Font Input Component
+interface FontInputProps {
+  value: string;
+  onChange: (value: string) => void;
+  id: string;
+}
+
+const FontInput: React.FC<FontInputProps> = ({ value, onChange, id }) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const [inputValue, setInputValue] = useState(value);
+  const [highlightedIndex, setHighlightedIndex] = useState(-1);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+  const wrapperRef = useRef<HTMLDivElement>(null);
+
+  // Sync inputValue with value prop
+  useEffect(() => {
+    setInputValue(value);
+  }, [value]);
+
+  // Filter fonts based on input
+  const getFilteredFonts = () => {
+    const lowerInput = inputValue.toLowerCase().trim();
+    if (!lowerInput) {
+      return RECOMMENDED_FONTS;
+    }
+    
+    const filtered = RECOMMENDED_FONTS.filter(font =>
+      font.toLowerCase().includes(lowerInput)
+    );
+    
+    // If only one match and it exactly equals the input, show all fonts
+    if (filtered.length === 1 && filtered[0].toLowerCase() === lowerInput) {
+      return RECOMMENDED_FONTS;
+    }
+    
+    return filtered;
+  };
+
+  const filteredFonts = getFilteredFonts();
+
+  // Handle input change
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newValue = e.target.value;
+    setInputValue(newValue);
+    onChange(newValue);
+    setIsOpen(true);
+    setHighlightedIndex(-1);
+  };
+
+  // Handle input focus
+  const handleInputFocus = () => {
+    setIsOpen(true);
+    setHighlightedIndex(-1);
+  };
+
+  // Handle font selection
+  const handleFontSelect = (font: string) => {
+    setInputValue(font);
+    onChange(font);
+    setIsOpen(false);
+    inputRef.current?.focus();
+  };
+
+  // Handle keyboard navigation
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (!isOpen && (e.key === 'ArrowDown' || e.key === 'ArrowUp')) {
+      setIsOpen(true);
+      return;
+    }
+
+    if (!isOpen) return;
+
+    switch (e.key) {
+      case 'ArrowDown':
+        e.preventDefault();
+        setHighlightedIndex(prev => 
+          prev < filteredFonts.length - 1 ? prev + 1 : prev
+        );
+        break;
+      case 'ArrowUp':
+        e.preventDefault();
+        setHighlightedIndex(prev => prev > 0 ? prev - 1 : -1);
+        break;
+      case 'Enter':
+        e.preventDefault();
+        if (highlightedIndex >= 0 && highlightedIndex < filteredFonts.length) {
+          handleFontSelect(filteredFonts[highlightedIndex]);
+        }
+        break;
+      case 'Escape':
+        setIsOpen(false);
+        setHighlightedIndex(-1);
+        break;
+    }
+  };
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        wrapperRef.current &&
+        !wrapperRef.current.contains(event.target as Node)
+      ) {
+        setIsOpen(false);
+        setHighlightedIndex(-1);
+      }
+    };
+
+    if (isOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => {
+        document.removeEventListener('mousedown', handleClickOutside);
+      };
+    }
+  }, [isOpen]);
+
+  return (
+    <div className="font-input-wrapper" ref={wrapperRef}>
+      <input
+        ref={inputRef}
+        type="text"
+        id={id}
+        value={inputValue}
+        onChange={handleInputChange}
+        onFocus={handleInputFocus}
+        onKeyDown={handleKeyDown}
+        className="font-input"
+        placeholder="Select or type font name"
+        autoComplete="off"
+      />
+      {isOpen && filteredFonts.length > 0 && (
+        <div className="font-dropdown" ref={dropdownRef}>
+          {filteredFonts.map((font, index) => (
+            <div
+              key={font}
+              className={`font-option ${index === highlightedIndex ? 'highlighted' : ''}`}
+              onClick={() => handleFontSelect(font)}
+              onMouseEnter={() => setHighlightedIndex(index)}
+            >
+              {font}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
 };
 
 const LayerStylesEditor: React.FC<LayerStylesEditorProps> = ({ 
@@ -437,26 +608,11 @@ const LayerStylesEditor: React.FC<LayerStylesEditorProps> = ({
             {isExpanded && (
               <div className="layer-fields">
                 <div className="field">
-                  <label>Line Color</label>
-                  <input
-                    type="color"
-                    value={layer.stroke_color}
-                    onChange={(e) => updateLayer(key, 'stroke_color', e.target.value)}
-                  />
-                  <input
-                    type="text"
-                    value={layer.stroke_color}
-                    onChange={(e) => updateLayer(key, 'stroke_color', e.target.value)}
-                    className="color-text"
-                  />
-                </div>
-                <div className="field">
-                  <label>Line Width</label>
-                  <input
-                    type="number"
-                    step="0.1"
-                    value={Math.round(layer.stroke_width * 100) / 100}
-                    onChange={(e) => updateLayer(key, 'stroke_width', parseFloat(e.target.value))}
+                  <label>Text Font</label>
+                  <FontInput
+                    value={layer.font_family}
+                    onChange={(value) => updateLayer(key, 'font_family', value)}
+                    id={`font-input-${key}`}
                   />
                 </div>
                 <div className="field">
@@ -482,6 +638,29 @@ const LayerStylesEditor: React.FC<LayerStylesEditorProps> = ({
                     max="1000"
                     value={Math.round(layer.font_zoom * 100 * 100) / 100}
                     onChange={(e) => updateLayer(key, 'font_zoom', parseFloat(e.target.value) / 100)}
+                  />
+                </div>
+                <div className="field">
+                  <label>Line Color</label>
+                  <input
+                    type="color"
+                    value={layer.stroke_color}
+                    onChange={(e) => updateLayer(key, 'stroke_color', e.target.value)}
+                  />
+                  <input
+                    type="text"
+                    value={layer.stroke_color}
+                    onChange={(e) => updateLayer(key, 'stroke_color', e.target.value)}
+                    className="color-text"
+                  />
+                </div>
+                <div className="field">
+                  <label>Line Width</label>
+                  <input
+                    type="number"
+                    step="0.1"
+                    value={Math.round(layer.stroke_width * 100) / 100}
+                    onChange={(e) => updateLayer(key, 'stroke_width', parseFloat(e.target.value))}
                   />
                 </div>
                 <div className="field">

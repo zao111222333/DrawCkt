@@ -39,13 +39,18 @@ pub struct LayerStyle {
     pub stroke_width: f64,
     pub text_color: String,
     pub font_zoom: f64,
-    #[serde(default = "default_sch_visible")]
+    pub font_family: String,
     pub sch_visible: bool,
 }
 
-fn default_sch_visible() -> bool {
-    true
+fn default_font_family() -> String {
+    "Times New Roman".to_string()
 }
+
+fn default_font_family_code() -> String {
+    "Verdana".to_string()
+}
+
 
 impl Default for LayerStyle {
     fn default() -> Self {
@@ -54,6 +59,7 @@ impl Default for LayerStyle {
             stroke_width: 1.0,
             text_color: "#000000".to_string(),
             font_zoom: 1.0,
+            font_family: default_font_family(),
             sch_visible: true,
         }
     }
@@ -87,6 +93,7 @@ impl Default for LayerStyles {
                 stroke_width: 2.0,
                 text_color: "#FF0000".to_string(),
                 font_zoom: 1.0,
+                font_family: default_font_family_code(),
                 sch_visible: true,
             },
             instance: LayerStyle {
@@ -94,6 +101,7 @@ impl Default for LayerStyles {
                 stroke_width: 1.0,
                 text_color: "#0000FF".to_string(),
                 font_zoom: 1.0,
+                font_family: default_font_family_code(),
                 sch_visible: false,
             },
             wire: LayerStyle {
@@ -101,6 +109,7 @@ impl Default for LayerStyles {
                 stroke_width: 2.0,
                 text_color: "#00CCCC".to_string(),
                 font_zoom: 1.0,
+                font_family: default_font_family_code(),
                 sch_visible: true,
             },
             wire_show_intersection: true,
@@ -109,6 +118,7 @@ impl Default for LayerStyles {
                 stroke_width: 1.0,
                 text_color: "#FF9900".to_string(),
                 font_zoom: 1.0,
+                font_family: default_font_family_code(),
                 sch_visible: false,
             },
             pin: LayerStyle {
@@ -116,13 +126,15 @@ impl Default for LayerStyles {
                 stroke_width: 2.0,
                 text_color: "#FF0000".to_string(),
                 font_zoom: 1.0,
+                font_family: default_font_family_code(),
                 sch_visible: true,
             },
             text: LayerStyle {
                 stroke_color: "#666666".to_string(),
                 stroke_width: 1.0,
                 text_color: "#666666".to_string(),
-                font_zoom: 1.0,
+                font_zoom: 2.0,
+                font_family: default_font_family(),
                 sch_visible: true,
             },
         }

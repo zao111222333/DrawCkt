@@ -28,6 +28,7 @@ export interface LayerStyle {
   stroke_color: string;
   stroke_width: number;
   text_color: string;
+  font_family: string;
   font_zoom: number;
   priority: number;
   sch_visible: boolean;
