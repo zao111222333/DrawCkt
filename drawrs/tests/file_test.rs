@@ -43,7 +43,7 @@ fn test_write_basic() {
     let page = Page::new(None, true);
     file.add_page(page);
 
-    let xml_content = file.write();
+    let xml_content = file.xml().to_string();
     assert!(!xml_content.is_empty());
     assert!(xml_content.contains("<mxfile"));
     assert!(xml_content.contains("</mxfile>"));

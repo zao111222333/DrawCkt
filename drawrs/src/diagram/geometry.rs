@@ -1,5 +1,6 @@
 use crate::BoundingBox;
 use crate::transform::FlipRotation;
+use std::fmt;
 
 #[derive(Clone, Debug)]
 pub struct Geometry {
@@ -169,66 +170,60 @@ impl Geometry {
         );
     }
 
-    pub fn xml(&self) -> String {
+    pub fn xml(&self) -> GeometryXml<'_> {
+        GeometryXml(self)
+    }
+}
+
+pub struct GeometryXml<'a>(&'a Geometry);
+
+impl<'a> fmt::Display for GeometryXml<'a> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         // Check if this is an edge geometry (has source_point and target_point)
-        if self.source_point.is_some() && self.target_point.is_some() {
-            let source = self.source_point.unwrap();
-            let target = self.target_point.unwrap();
-            let relative = self.relative.unwrap_or(true);
+        if self.0.source_point.is_some() && self.0.target_point.is_some() {
+            let source = self.0.source_point.unwrap();
+            let target = self.0.target_point.unwrap();
+            let relative = self.0.relative.unwrap_or(true);
 
-            let mut xml = format!(
-                r#"<mxGeometry width="{}" height="{}" relative="{}" as="{}">"#,
-                self.bounding_box.width(),
-                self.bounding_box.height(),
-                if relative { "1" } else { "0" },
-                self.as_attribute
-            );
-
-            xml.push_str(&format!(
-                r#"
-            <mxPoint x="{}" y="{}" as="sourcePoint" />"#,
-                source[0], source[1]
-            ));
-
-            xml.push_str(&format!(
-                r#"
+            write!(
+                f,
+                r#"<mxGeometry width="{}" height="{}" relative="{}" as="{}">
+            <mxPoint x="{}" y="{}" as="sourcePoint" />
             <mxPoint x="{}" y="{}" as="targetPoint" />"#,
-                target[0], target[1]
-            ));
+                self.0.bounding_box.width(),
+                self.0.bounding_box.height(),
+                if relative { "1" } else { "0" },
+                self.0.as_attribute,
+                source[0],
+                source[1],
+                target[0],
+                target[1]
+            )?;
 
             // Add intermediate points if any
-            if !self.intermediate_points.is_empty() {
-                xml.push_str(
-                    r#"
-            <Array as="points">"#,
-                );
-                for point in &self.intermediate_points {
-                    xml.push_str(&format!(
-                        r#"
-              <mxPoint x="{}" y="{}" />"#,
+            if !self.0.intermediate_points.is_empty() {
+                write!(f, "\n            <Array as=\"points\">")?;
+                for point in &self.0.intermediate_points {
+                    write!(
+                        f,
+                        "\n              <mxPoint x=\"{}\" y=\"{}\" />",
                         point[0], point[1]
-                    ));
+                    )?;
                 }
-                xml.push_str(
-                    r#"
-            </Array>"#,
-                );
+                write!(f, "\n            </Array>")?;
             }
 
-            xml.push_str(
-                r#"
-          </mxGeometry>"#,
-            );
-            xml
+            write!(f, "\n          </mxGeometry>")
         } else {
             // Regular geometry
-            format!(
+            write!(
+                f,
                 r#"<mxGeometry x="{}" y="{}" width="{}" height="{}" as="{}" />"#,
-                self.bounding_box.min_x(),
-                self.bounding_box.min_y(),
-                self.bounding_box.width(),
-                self.bounding_box.height(),
-                self.as_attribute
+                self.0.bounding_box.min_x(),
+                self.0.bounding_box.min_y(),
+                self.0.bounding_box.width(),
+                self.0.bounding_box.height(),
+                self.0.as_attribute
             )
         }
     }

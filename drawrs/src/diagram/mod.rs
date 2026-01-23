@@ -7,4 +7,4 @@ pub mod text_format;
 pub use base_diagram::DiagramBase;
 pub use edges::Edge;
 pub use geometry::Geometry;
-pub use objects::Object;
+pub use objects::{FillStyle, Object};

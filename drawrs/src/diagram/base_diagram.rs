@@ -1,13 +1,13 @@
 use crate::xml_base::XMLBase;
 use indexmap::IndexMap;
+use std::borrow::Cow;
 
 #[derive(Clone, Debug)]
 pub struct DiagramBase {
     base: XMLBase,
-    style_attributes: Vec<String>,
     page: Option<String>, // Reference to page by ID
-    base_style: Option<String>,
-    style_properties: IndexMap<String, String>,
+    // Only stores unsupported style keys
+    unsupported_style_properties: IndexMap<Cow<'static, str>, Cow<'static, str>>,
 }
 
 impl DiagramBase {
@@ -16,10 +16,8 @@ impl DiagramBase {
         base.xml_class = "xml_tag".to_string();
         Self {
             base,
-            style_attributes: vec!["html".to_string()],
             page: None,
-            base_style: None,
-            style_properties: IndexMap::new(),
+            unsupported_style_properties: IndexMap::new(),
         }
     }
 
@@ -28,10 +26,8 @@ impl DiagramBase {
         base.xml_class = "xml_tag".to_string();
         Self {
             base,
-            style_attributes: vec!["html".to_string()],
             page,
-            base_style: None,
-            style_properties: IndexMap::new(),
+            unsupported_style_properties: IndexMap::new(),
         }
     }
     pub fn base(&self) -> &XMLBase {
@@ -48,14 +44,14 @@ impl DiagramBase {
         self.base.id = id;
     }
 
-    pub fn style_attributes(&self) -> &[String] {
-        &self.style_attributes
+    pub fn unsupported_style_properties(&self) -> &IndexMap<Cow<'static, str>, Cow<'static, str>> {
+        &self.unsupported_style_properties
     }
 
-    pub fn add_style_attribute(&mut self, attr: String) {
-        if !self.style_attributes.contains(&attr) {
-            self.style_attributes.push(attr);
-        }
+    pub fn unsupported_style_properties_mut(
+        &mut self,
+    ) -> &mut IndexMap<Cow<'static, str>, Cow<'static, str>> {
+        &mut self.unsupported_style_properties
     }
 
     pub fn page(&self) -> Option<&String> {
@@ -89,55 +85,54 @@ impl DiagramBase {
         self.page.clone().unwrap_or_else(|| "1".to_string())
     }
 
-    pub fn set_style_property(&mut self, key: String, value: String) {
-        let key_clone = key.clone();
-        self.style_properties.insert(key, value);
-        // Add to style_attributes if not already present
-        if !self.style_attributes.contains(&key_clone) {
-            self.add_style_attribute(key_clone);
-        }
-    }
-
-    pub fn remove_style_property(&mut self, key: &str) {
-        self.style_properties.shift_remove(key);
-    }
-
-    pub fn style(&self) -> String {
-        let mut style_str = String::new();
-
-        if let Some(ref base) = self.base_style {
-            style_str.push_str(base);
-            style_str.push(';');
-        }
-
-        for attr in &self.style_attributes {
-            if let Some(value) = self.style_properties.get(attr) {
-                style_str.push_str(attr);
-                style_str.push('=');
-                style_str.push_str(value);
-                style_str.push(';');
-            }
-        }
-
-        style_str
-    }
-
-    pub fn apply_style_string(&mut self, style_str: &str) {
+    /// Parse style string into key-value pairs
+    pub fn parse_style_string(style_str: &str) -> Vec<(&str, &str)> {
+        let mut key_value_list = Vec::new();
         for part in style_str.split(';') {
             if part.is_empty() {
                 continue;
             } else if part.contains('=') {
                 let parts: Vec<&str> = part.splitn(2, '=').collect();
                 if parts.len() == 2 {
-                    let key = parts[0].to_string();
-                    let value = parts[1].to_string();
-                    self.set_style_property(key, value);
+                    key_value_list.push((parts[0], parts[1]));
                 }
-            } else {
-                // Base style without '='
-                self.base_style = Some(part.to_string());
             }
         }
+        key_value_list
+    }
+
+    /// Apply a single style property (for unsupported keys only)
+    pub fn apply_style_property(&mut self, key: Cow<'static, str>, value: Cow<'static, str>) {
+        self.unsupported_style_properties.insert(key, value);
+    }
+
+    /// Remove an unsupported style property
+    pub fn remove_style_property(&mut self, key: &str) {
+        self.unsupported_style_properties.shift_remove(key);
+    }
+
+    /// Build style string from supported properties and unsupported properties
+    /// supported_properties: Vec of (key, value) pairs for supported style keys
+    pub fn build_style_string(&self, supported_properties: &[(&str, String)]) -> String {
+        let mut style_str = String::new();
+
+        // Add supported properties first
+        for (key, value) in supported_properties {
+            style_str.push_str(key);
+            style_str.push('=');
+            style_str.push_str(value);
+            style_str.push(';');
+        }
+
+        // Add unsupported properties
+        for (key, value) in &self.unsupported_style_properties {
+            style_str.push_str(key);
+            style_str.push('=');
+            style_str.push_str(value);
+            style_str.push(';');
+        }
+
+        style_str
     }
 }
 

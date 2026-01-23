@@ -1,6 +1,8 @@
 use crate::XMLBase;
 use crate::diagram::base_diagram::DiagramBase;
 use crate::diagram::geometry::Geometry;
+use std::borrow::Cow;
+use std::fmt;
 
 #[derive(Clone, Debug)]
 pub struct Edge {
@@ -27,22 +29,7 @@ pub struct Edge {
 
 impl Edge {
     pub fn new(id: Option<String>) -> Self {
-        let mut base = DiagramBase::new(id);
-        base.add_style_attribute("rounded".to_string());
-        base.add_style_attribute("strokeColor".to_string());
-        base.add_style_attribute("strokeWidth".to_string());
-        base.add_style_attribute("fillColor".to_string());
-        base.add_style_attribute("endArrow".to_string());
-        base.add_style_attribute("startArrow".to_string());
-        base.add_style_attribute("endFill".to_string());
-        base.add_style_attribute("startFill".to_string());
-        base.add_style_attribute("endSize".to_string());
-        base.add_style_attribute("startSize".to_string());
-        base.add_style_attribute("opacity".to_string());
-
-        // Set default style values
-        base.set_style_property("endArrow".to_string(), "none".to_string());
-        base.set_style_property("rounded".to_string(), "0".to_string());
+        let base = DiagramBase::new(id);
 
         Self {
             base,
@@ -114,7 +101,6 @@ impl Edge {
 
     pub fn set_stroke_color(&mut self, color: Option<String>) {
         self.stroke_color = color;
-        self.update_style();
     }
 
     pub fn stroke_width(&self) -> Option<f64> {
@@ -123,7 +109,6 @@ impl Edge {
 
     pub fn set_stroke_width(&mut self, width: Option<f64>) {
         self.stroke_width = width;
-        self.update_style();
     }
 
     pub fn fill_color(&self) -> Option<&String> {
@@ -132,7 +117,6 @@ impl Edge {
 
     pub fn set_fill_color(&mut self, color: Option<String>) {
         self.fill_color = color;
-        self.update_style();
     }
 
     pub fn pattern(&self) -> &str {
@@ -169,7 +153,6 @@ impl Edge {
 
     pub fn set_line_end_target(&mut self, end: Option<String>) {
         self.line_end_target = end;
-        self.update_style();
     }
 
     pub fn line_end_source(&self) -> Option<&String> {
@@ -178,7 +161,6 @@ impl Edge {
 
     pub fn set_line_end_source(&mut self, end: Option<String>) {
         self.line_end_source = end;
-        self.update_style();
     }
 
     pub fn end_fill_target(&self) -> bool {
@@ -187,7 +169,6 @@ impl Edge {
 
     pub fn set_end_fill_target(&mut self, fill: bool) {
         self.end_fill_target = fill;
-        self.update_style();
     }
 
     pub fn end_fill_source(&self) -> bool {
@@ -196,7 +177,6 @@ impl Edge {
 
     pub fn set_end_fill_source(&mut self, fill: bool) {
         self.end_fill_source = fill;
-        self.update_style();
     }
 
     pub fn end_size(&self) -> Option<i32> {
@@ -205,7 +185,6 @@ impl Edge {
 
     pub fn set_end_size(&mut self, size: Option<i32>) {
         self.end_size = size;
-        self.update_style();
     }
 
     pub fn start_size(&self) -> Option<i32> {
@@ -214,7 +193,6 @@ impl Edge {
 
     pub fn set_start_size(&mut self, size: Option<i32>) {
         self.start_size = size;
-        self.update_style();
     }
 
     pub fn opacity(&self) -> Option<i32> {
@@ -223,53 +201,58 @@ impl Edge {
 
     pub fn set_opacity(&mut self, opacity: Option<i32>) {
         self.opacity = opacity;
-        self.update_style();
     }
 
-    fn update_style(&mut self) {
-        if let Some(ref sc) = self.stroke_color {
-            self.base
-                .set_style_property("strokeColor".to_string(), sc.clone());
+    /// Internal helper to apply a single style property
+    pub fn apply_style_property(&mut self, key: &str, value: &str) {
+        match key {
+            "strokeColor" => self.stroke_color = Some(value.to_string()),
+            "strokeWidth" => {
+                if let Ok(sw) = value.parse::<f64>() {
+                    self.stroke_width = Some(sw);
+                }
+            }
+            "fillColor" => self.fill_color = Some(value.to_string()),
+            "endArrow" => self.line_end_target = Some(value.to_string()),
+            "startArrow" => self.line_end_source = Some(value.to_string()),
+            "endFill" => {
+                if let Ok(ef) = value.parse::<i32>() {
+                    self.end_fill_target = ef != 0;
+                }
+            }
+            "startFill" => {
+                if let Ok(sf) = value.parse::<i32>() {
+                    self.end_fill_source = sf != 0;
+                }
+            }
+            "endSize" => {
+                if let Ok(es) = value.parse::<i32>() {
+                    self.end_size = Some(es);
+                }
+            }
+            "startSize" => {
+                if let Ok(ss) = value.parse::<i32>() {
+                    self.start_size = Some(ss);
+                }
+            }
+            "opacity" => {
+                if let Ok(op) = value.parse::<i32>() {
+                    self.opacity = Some(op);
+                }
+            }
+            "rounded" => {
+                if let Ok(r) = value.parse::<i32>() {
+                    self.rounded = if r != 0 { 1 } else { 0 };
+                }
+            }
+            _ => {
+                // For unsupported style properties, store in base
+                self.base.apply_style_property(
+                    Cow::Owned(key.to_string()),
+                    Cow::Owned(value.to_string()),
+                );
+            }
         }
-        if let Some(sw) = self.stroke_width {
-            self.base
-                .set_style_property("strokeWidth".to_string(), sw.to_string());
-        }
-        if let Some(ref fc) = self.fill_color {
-            self.base
-                .set_style_property("fillColor".to_string(), fc.clone());
-        }
-        if let Some(ref end) = self.line_end_target {
-            self.base
-                .set_style_property("endArrow".to_string(), end.clone());
-        }
-        if let Some(ref start) = self.line_end_source {
-            self.base
-                .set_style_property("startArrow".to_string(), start.clone());
-        }
-        if self.end_fill_target {
-            self.base
-                .set_style_property("endFill".to_string(), "1".to_string());
-        }
-        if self.end_fill_source {
-            self.base
-                .set_style_property("startFill".to_string(), "1".to_string());
-        }
-        if let Some(es) = self.end_size {
-            self.base
-                .set_style_property("endSize".to_string(), es.to_string());
-        }
-        if let Some(ss) = self.start_size {
-            self.base
-                .set_style_property("startSize".to_string(), ss.to_string());
-        }
-        if let Some(op) = self.opacity {
-            self.base
-                .set_style_property("opacity".to_string(), op.to_string());
-        }
-        // Always set rounded based on the rounded field
-        self.base
-            .set_style_property("rounded".to_string(), self.rounded.to_string());
     }
 
     pub fn set_page(&mut self, page: Option<String>) {
@@ -284,79 +267,18 @@ impl Edge {
         self.base_mut().tag = tag;
     }
 
-    pub fn style(&self) -> String {
-        self.base.style()
-    }
-
     pub fn tag(&self) -> Option<&String> {
         self.base().tag.as_ref()
     }
 
-    pub fn apply_style_string(&mut self, style_str: &str) {
-        self.parse_and_set_style(style_str);
-    }
-
-    // Parse style string and set all relevant properties using setters
+    // Parse style string and set all relevant properties
     pub fn parse_and_set_style(&mut self, style_str: &str) {
-        for part in style_str.split(';') {
-            if part.is_empty() {
-                continue;
-            } else if part.contains('=') {
-                let parts: Vec<&str> = part.splitn(2, '=').collect();
-                if parts.len() == 2 {
-                    let key = parts[0];
-                    let value = parts[1];
-                    match key {
-                        "strokeColor" => self.set_stroke_color(Some(value.to_string())),
-                        "strokeWidth" => {
-                            if let Ok(sw) = value.parse::<f64>() {
-                                self.set_stroke_width(Some(sw));
-                            }
-                        }
-                        "fillColor" => self.set_fill_color(Some(value.to_string())),
-                        "endArrow" => self.set_line_end_target(Some(value.to_string())),
-                        "startArrow" => self.set_line_end_source(Some(value.to_string())),
-                        "endFill" => {
-                            if let Ok(ef) = value.parse::<i32>() {
-                                self.set_end_fill_target(ef != 0);
-                            }
-                        }
-                        "startFill" => {
-                            if let Ok(sf) = value.parse::<i32>() {
-                                self.set_end_fill_source(sf != 0);
-                            }
-                        }
-                        "endSize" => {
-                            if let Ok(es) = value.parse::<i32>() {
-                                self.set_end_size(Some(es));
-                            }
-                        }
-                        "startSize" => {
-                            if let Ok(ss) = value.parse::<i32>() {
-                                self.set_start_size(Some(ss));
-                            }
-                        }
-                        "opacity" => {
-                            if let Ok(op) = value.parse::<i32>() {
-                                self.set_opacity(Some(op));
-                            }
-                        }
-                        "rounded" => {
-                            if let Ok(r) = value.parse::<i32>() {
-                                self.rounded = if r != 0 { 1 } else { 0 };
-                                self.update_style();
-                            }
-                        }
-                        _ => {
-                            // For other style properties, use the base apply_style_string
-                            self.base.apply_style_string(part);
-                        }
-                    }
-                }
-            } else {
-                // Base style without '='
-                self.base.apply_style_string(part);
-            }
+        // Parse style string into key-value pairs
+        let key_value_list = DiagramBase::parse_style_string(style_str);
+
+        // Apply each key-value pair
+        for (key, value) in key_value_list {
+            self.apply_style_property(key, value);
         }
     }
 
@@ -368,17 +290,26 @@ impl Edge {
         &self.geometry
     }
 
-    pub fn xml(&self) -> String {
-        let style = self.base.style();
-        let parent_id = self.base.xml_parent_id();
+    pub fn xml(&self) -> EdgeXml<'_> {
+        EdgeXml(self)
+    }
+}
+
+pub struct EdgeXml<'a>(&'a Edge);
+
+impl<'a> fmt::Display for EdgeXml<'a> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let style = EdgeStyleFormatter(self.0);
+        let parent_id = self.0.base.xml_parent_id();
         let value = self
+            .0
             .label()
             .map(|l| crate::xml_base::XMLBase::xml_ify(l))
             .unwrap_or_else(|| "".to_string());
 
         // Only include source and target if they are set and not "1"
-        let source_id = self.source.as_ref().map(|s| s.as_str());
-        let target_id = self.target.as_ref().map(|s| s.as_str());
+        let source_id = self.0.source.as_ref().map(|s| s.as_str());
+        let target_id = self.0.target.as_ref().map(|s| s.as_str());
 
         // Check if we should include source/target attributes
         let has_source_target = source_id.is_some()
@@ -386,71 +317,129 @@ impl Edge {
             && source_id.unwrap() != "1"
             && target_id.unwrap() != "1";
 
-        if let Some(tag) = self.tag() {
+        if let Some(tag) = self.0.tag() {
             // When tag is present, wrap in UserObject and mxCell should not have id attribute
             // Value (label) goes to UserObject label, not mxCell value
-            let mx_cell_xml = if has_source_target {
-                format!(
-                    r#"<mxCell style="{}" edge="{}" parent="{}" source="{}" target="{}">
+            if has_source_target {
+                write!(
+                    f,
+                    r#"<UserObject label="{}" tags="{}" id="{}">
+        <mxCell style="{}" edge="{}" parent="{}" source="{}" target="{}">
           {}
-        </mxCell>"#,
+        </mxCell>
+        </UserObject>"#,
+                    value,
+                    crate::xml_base::XMLBase::xml_ify(tag),
+                    self.0.base.id(),
                     style,
-                    self.edge,
+                    self.0.edge,
                     parent_id,
                     source_id.unwrap(),
                     target_id.unwrap(),
-                    self.geometry.xml()
+                    self.0.geometry.xml()
                 )
             } else {
-                format!(
-                    r#"<mxCell style="{}" edge="{}" parent="{}">
+                write!(
+                    f,
+                    r#"<UserObject label="{}" tags="{}" id="{}">
+        <mxCell style="{}" edge="{}" parent="{}">
           {}
-        </mxCell>"#,
-                    style,
-                    self.edge,
-                    parent_id,
-                    self.geometry.xml()
-                )
-            };
-            format!(
-                r#"<UserObject label="{}" tags="{}" id="{}">
-        {}
+        </mxCell>
         </UserObject>"#,
-                value,
-                crate::xml_base::XMLBase::xml_ify(tag),
-                self.base.id(),
-                mx_cell_xml
-            )
+                    value,
+                    crate::xml_base::XMLBase::xml_ify(tag),
+                    self.0.base.id(),
+                    style,
+                    self.0.edge,
+                    parent_id,
+                    self.0.geometry.xml()
+                )
+            }
         } else {
             // Normal case: mxCell with id
             if has_source_target {
-                format!(
+                write!(
+                    f,
                     r#"<mxCell id="{}" value="{}" style="{}" edge="{}" parent="{}" source="{}" target="{}">
           {}
         </mxCell>"#,
-                    self.base.id(),
+                    self.0.base.id(),
                     value,
                     style,
-                    self.edge,
+                    self.0.edge,
                     parent_id,
                     source_id.unwrap(),
                     target_id.unwrap(),
-                    self.geometry.xml()
+                    self.0.geometry.xml()
                 )
             } else {
-                format!(
+                write!(
+                    f,
                     r#"<mxCell id="{}" value="{}" style="{}" edge="{}" parent="{}">
           {}
         </mxCell>"#,
-                    self.base.id(),
+                    self.0.base.id(),
                     value,
                     style,
-                    self.edge,
+                    self.0.edge,
                     parent_id,
-                    self.geometry.xml()
+                    self.0.geometry.xml()
                 )
             }
         }
+    }
+}
+
+struct EdgeStyleFormatter<'a>(&'a Edge);
+
+impl<'a> fmt::Display for EdgeStyleFormatter<'a> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        // Add all supported style properties
+        if let Some(ref sc) = self.0.stroke_color {
+            write!(f, "strokeColor={};", sc)?;
+        }
+        if let Some(sw) = self.0.stroke_width {
+            write!(f, "strokeWidth={};", sw)?;
+        }
+        if let Some(ref fc) = self.0.fill_color {
+            write!(f, "fillColor={};", fc)?;
+        }
+        if let Some(ref end) = self.0.line_end_target {
+            write!(f, "endArrow={};", end)?;
+        }
+        if let Some(ref start) = self.0.line_end_source {
+            write!(f, "startArrow={};", start)?;
+        }
+        if self.0.end_fill_target {
+            write!(f, "endFill=1;")?;
+        }
+        if self.0.end_fill_source {
+            write!(f, "startFill=1;")?;
+        }
+        if let Some(es) = self.0.end_size {
+            write!(f, "endSize={};", es)?;
+        }
+        if let Some(ss) = self.0.start_size {
+            write!(f, "startSize={};", ss)?;
+        }
+        if let Some(op) = self.0.opacity {
+            write!(f, "opacity={};", op)?;
+        }
+        // Always include rounded
+        write!(f, "rounded={};", self.0.rounded)?;
+
+        // Add unsupported properties
+        for (key, value) in self.0.base.unsupported_style_properties() {
+            write!(f, "{}={};", key, value)?;
+        }
+
+        Ok(())
+    }
+}
+
+impl Edge {
+    pub fn style(&self) -> impl fmt::Display + '_ {
+        EdgeStyleFormatter(self)
     }
 }
 

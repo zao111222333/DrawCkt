@@ -105,47 +105,42 @@ impl Page {
         self.objects.retain(|o| o.id() != obj_id);
     }
 
-    pub fn xml(&self) -> String {
-        let mut xml = self.xml_open_tag();
-        for obj in &self.objects {
-            xml.push_str("\n        ");
-            xml.push_str(&obj.xml());
-        }
-        xml.push('\n');
-        xml.push_str(&self.xml_close_tag());
-        xml
+    pub fn xml(&self) -> PageXml<'_> {
+        PageXml(self)
     }
-    fn xml_open_tag(&self) -> String {
-        format!(
+}
+
+pub struct PageXml<'a>(&'a Page);
+
+impl<'a> std::fmt::Display for PageXml<'a> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
             r#"<diagram name="{}" id="{}">
     <mxGraphModel dx="{}" dy="{}" grid="{}" gridSize="{}" guides="{}" toolTips="{}" connect="{}" arrows="{}" fold="{}" page="{}" pageScale="{}" pageWidth="{}" pageHeight="{}" math="{}" shadow="{}">
       <root>"#,
-            self.name,
-            self.diagram.base.id,
-            self.dx,
-            self.dy,
-            self.grid,
-            self.grid_size,
-            self.guides,
-            self.tooltips,
-            self.connect,
-            self.arrows,
-            self.fold,
-            self.page_num,
-            self.scale,
-            self.width,
-            self.height,
-            self.math,
-            self.shadow
-        )
-    }
-
-    fn xml_close_tag(&self) -> String {
-        format!(
-            r#"      </root>
-    </mxGraphModel>
-  </diagram>"#
-        )
+            self.0.name,
+            self.0.diagram.base.id,
+            self.0.dx,
+            self.0.dy,
+            self.0.grid,
+            self.0.grid_size,
+            self.0.guides,
+            self.0.tooltips,
+            self.0.connect,
+            self.0.arrows,
+            self.0.fold,
+            self.0.page_num,
+            self.0.scale,
+            self.0.width,
+            self.0.height,
+            self.0.math,
+            self.0.shadow
+        )?;
+        for obj in &self.0.objects {
+            write!(f, "\n        {}", obj.xml())?;
+        }
+        write!(f, "\n      </root>\n    </mxGraphModel>\n  </diagram>")
     }
 }
 
@@ -227,12 +222,8 @@ impl DiagramObject {
         self.base_mut().tag = tag;
     }
 
-    pub fn xml(&self) -> String {
-        match self {
-            DiagramObject::XmlBase(x) => XMLBase::xml(x),
-            DiagramObject::Object(o) => o.xml(),
-            DiagramObject::Edge(e) => e.xml(),
-        }
+    pub fn xml(&self) -> DiagramObjectXml<'_> {
+        DiagramObjectXml(self)
     }
 
     /// Get bounding box for objects (for Objects only, returns None for XmlBase and Edge)
@@ -259,6 +250,18 @@ impl DiagramObject {
     /// Set the XML parent of this object
     pub fn set_xml_parent(&mut self, parent: Option<String>) {
         self.base_mut().xml_parent = parent;
+    }
+}
+
+pub struct DiagramObjectXml<'a>(&'a DiagramObject);
+
+impl<'a> std::fmt::Display for DiagramObjectXml<'a> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self.0 {
+            DiagramObject::XmlBase(x) => write!(f, "{}", x.xml()),
+            DiagramObject::Object(o) => write!(f, "{}", o.xml()),
+            DiagramObject::Edge(e) => write!(f, "{}", e.xml()),
+        }
     }
 }
 

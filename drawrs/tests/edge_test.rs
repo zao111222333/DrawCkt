@@ -83,7 +83,7 @@ fn test_opacity() {
 fn test_xml_generation() {
     let mut edge = Edge::new(None);
     edge.base_mut().value = Some("Test Label".to_string());
-    let xml = edge.xml();
+    let xml = edge.xml().to_string();
     assert!(xml.contains("mxCell"));
     assert!(xml.contains("edge"));
 }

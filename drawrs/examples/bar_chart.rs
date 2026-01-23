@@ -30,7 +30,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Write the file
     let output_file = "Bar Chart Example.drawio";
-    let xml_content = file.write();
+    let xml_content = file.xml().to_string();
     fs::write(output_file, xml_content)?;
     println!("Bar chart written to: {}", output_file);
     Ok(())

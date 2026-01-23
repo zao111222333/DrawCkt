@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::fmt;
 use uuid::Uuid;
 
 #[derive(Clone, Debug)]
@@ -69,35 +70,71 @@ impl XMLBase {
         self.value.as_mut()
     }
 
-    pub fn xml(&self) -> String {
+    pub fn xml(&self) -> XMLBaseXml<'_> {
+        XMLBaseXml(self)
+    }
+}
+
+pub struct XMLBaseXml<'a>(&'a XMLBase);
+
+impl<'a> fmt::Display for XMLBaseXml<'a> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         // Special handling for group mxCell
-        if self.xml_class == "mxCell"
-            && let Some(bbox) = self.group_geometry
-        {
-            let parent_id = self.xml_parent.as_ref().map(|p| p.as_str()).unwrap_or("1");
-            let value_attr = self
-                .value
+        if self.0.xml_class == "mxCell" && self.0.group_geometry.is_some() {
+            let bbox = self.0.group_geometry.unwrap();
+            let parent_id = self
+                .0
+                .xml_parent
                 .as_ref()
-                .map(|v| format!(r#" value="{}""#, XMLBase::xml_ify(v)))
-                .unwrap_or_default();
-            return format!(
-                r#"<mxCell id="{}" connectable="0" parent="{}" style="group"{} vertex="1">
+                .map(|p| p.as_str())
+                .unwrap_or("1");
+            if let Some(v) = &self.0.value {
+                write!(
+                    f,
+                    r#"<mxCell id="{}" connectable="0" parent="{}" style="group" value="{}" vertex="1">
           <mxGeometry x="{}" y="{}" width="{}" height="{}" as="geometry" />
         </mxCell>"#,
-                XMLBase::xml_ify(&self.id),
-                parent_id,
-                value_attr,
-                bbox.min_x(),
-                bbox.min_y(),
-                bbox.width(),
-                bbox.height()
-            );
+                    XMLBase::xml_ify(&self.0.id),
+                    parent_id,
+                    XMLBase::xml_ify(v),
+                    bbox.min_x(),
+                    bbox.min_y(),
+                    bbox.width(),
+                    bbox.height()
+                )
+            } else {
+                write!(
+                    f,
+                    r#"<mxCell id="{}" connectable="0" parent="{}" style="group" vertex="1">
+          <mxGeometry x="{}" y="{}" width="{}" height="{}" as="geometry" />
+        </mxCell>"#,
+                    XMLBase::xml_ify(&self.0.id),
+                    parent_id,
+                    bbox.min_x(),
+                    bbox.min_y(),
+                    bbox.width(),
+                    bbox.height()
+                )
+            }
+        } else {
+            // Always output as self-closing tag, value is included in attributes
+            write!(f, "<{}", self.0.xml_class)?;
+            write!(f, r#" id="{}""#, XMLBase::xml_ify(&self.0.id))?;
+            if let Some(ref parent) = self.0.xml_parent {
+                write!(f, r#" parent="{}""#, XMLBase::xml_ify(parent))?;
+            }
+            if let Some(ref visible) = self.0.visible {
+                write!(f, r#" visible="{}""#, XMLBase::xml_ify(visible))?;
+            }
+            if let Some(ref value) = self.0.value {
+                write!(f, r#" value="{}""#, XMLBase::xml_ify(value))?;
+            }
+            write!(f, " />")
         }
-
-        // Always output as self-closing tag, value is included in attributes
-        format!("{} />", self.xml_open_tag().trim_end_matches('>'))
     }
+}
 
+impl XMLBase {
     pub fn xml_ify(parameter_string: &str) -> String {
         // First, decode any existing XML entities to avoid double-escaping
         let decoded = Self::decode_xml_entities(parameter_string);

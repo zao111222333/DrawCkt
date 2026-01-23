@@ -44,7 +44,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut obj5 = Object::new(None);
     obj5.set_value("Styled".to_string());
     obj5.set_position([300.0, 250.0]);
-    obj5.apply_style_string("rounded=1;fillColor=#6a00ff;strokeColor=#000000;opacity=80;");
+    obj5.parse_and_set_style("rounded=1;fillColor=#6a00ff;strokeColor=#000000;opacity=80;");
     obj5.set_xml_parent(Some("1".to_string()));
     page.add_object(obj5.into());
 
@@ -52,7 +52,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Write the file
     let output_file = "Colors and Styles.drawio";
-    let xml_content = file.write();
+    let xml_content = file.xml().to_string();
     fs::write(output_file, xml_content)?;
     println!("Colors and styles example written to: {}", output_file);
     Ok(())

@@ -8,7 +8,7 @@ pub mod utils;
 pub mod xml_base;
 pub mod xml_parser;
 
-pub use diagram::{DiagramBase, Edge, Geometry, Object};
+pub use diagram::{DiagramBase, Edge, FillStyle, Geometry, Object};
 pub use diagram_types::{BarChart, BinaryNodeObject, BinaryTreeDiagram, Legend, PieChart};
 pub use error::{DrawrsError, DrawrsResult};
 pub use file::DrawFile;

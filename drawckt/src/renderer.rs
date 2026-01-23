@@ -2,6 +2,7 @@ use crate::error::{DrawcktError, DrawcktResult};
 use crate::schematic::*;
 use drawrs::diagram::text_format::{Justify, JustifyX, JustifyY};
 use drawrs::xml_base::XMLBase;
+use drawrs::FillStyle;
 use drawrs::{
     parse_xml_to_object, BoundingBox, DiagramObject, DrawFile, Edge, GroupTransform, Object,
     Orient, Page,
@@ -405,21 +406,21 @@ impl<'a> Renderer<'a> {
                 obj.set_stroke_color(Some("none".to_string()));
                 obj.set_stroke_width(Some(layer_style.stroke_width));
                 obj.set_fill_color(Some(layer_style.stroke_color.clone()));
-                obj.apply_style_string("fillStyle=cross-hatch;");
+                obj.set_fill_style(Some(FillStyle::CrossHatch));
             }
             4 => {
                 // Filled with a pattern
                 obj.set_stroke_color(Some("none".to_string()));
                 obj.set_stroke_width(Some(layer_style.stroke_width));
                 obj.set_fill_color(Some(layer_style.stroke_color.clone()));
-                obj.apply_style_string("fillStyle=hatch;");
+                obj.set_fill_style(Some(FillStyle::Hatch));
             }
             5 => {
                 // Filled with pattern and outlined
                 obj.set_stroke_color(Some(layer_style.stroke_color.clone()));
                 obj.set_stroke_width(Some(layer_style.stroke_width));
                 obj.set_fill_color(Some(layer_style.stroke_color.clone()));
-                obj.apply_style_string("fillStyle=hatch;");
+                obj.set_fill_style(Some(FillStyle::Hatch));
             }
             _ => {
                 // Fallback to not filled
@@ -446,7 +447,7 @@ impl<'a> Renderer<'a> {
                     lib: template.lib.as_str().into(),
                     cell: template.cell.as_str().into(),
                 };
-                Ok((symbol_id, symbol_file.write().into()))
+                Ok((symbol_id, symbol_file.xml().to_string().into()))
             })
             .collect::<Result<_, DrawcktError>>()?;
         Ok(SymbolContexts(contexts))
@@ -572,7 +573,7 @@ impl<'a> Renderer<'a> {
                 obj.set_font_size(Some(font_height * layer_style.font_zoom));
                 obj.set_xml_parent(Some(layer.id()));
                 obj.set_justify(*justify);
-                obj.apply_style_string("spacing=0;");
+                obj.apply_style_property("spacing", "0");
                 page.add_object(obj.into());
             }
             Shape::Polygon {
@@ -814,7 +815,7 @@ impl<'a> Renderer<'a> {
         }
 
         schematic_file.add_page(schematic_page);
-        Ok(schematic_file.write())
+        Ok(schematic_file.xml().to_string())
     }
 
     // Parse symbols.drawio file to extract pages

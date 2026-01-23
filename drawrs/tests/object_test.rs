@@ -35,7 +35,7 @@ fn test_with_dimensions() {
 fn test_apply_style_string() {
     let mut obj = Object::new(None);
     let style_str = "whiteSpace=wrap;rounded=1;fillColor=#6a00ff;strokeColor=#000000;";
-    obj.apply_style_string(style_str);
+    obj.parse_and_set_style(style_str);
 
     assert_eq!(obj.fill_color(), Some(&"#6a00ff".to_string()));
     assert_eq!(obj.stroke_color(), Some(&"#000000".to_string()));
@@ -74,7 +74,7 @@ fn test_set_opacity() {
 fn test_xml_generation() {
     let mut obj = Object::new(None);
     obj.set_value("Test".to_string());
-    let xml = obj.xml();
+    let xml = obj.xml().to_string();
     assert!(xml.contains("mxCell"));
     assert!(xml.contains("Test"));
     assert!(xml.contains("mxGeometry"));

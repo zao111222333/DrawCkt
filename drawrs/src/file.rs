@@ -1,6 +1,7 @@
 use crate::page::Page;
 use crate::xml_base::XMLBase;
 use chrono::Utc;
+use std::fmt;
 
 pub struct DrawFile {
     pub base: XMLBase,
@@ -53,33 +54,27 @@ impl DrawFile {
         format!("{}/{}", env!("CARGO_PKG_NAME"), env!("CARGO_PKG_VERSION"))
     }
 
-    pub fn xml(&self) -> String {
-        let mut xml = self.xml_open_tag();
-        for page in &self.pages {
-            xml.push_str("\n  ");
-            xml.push_str(&page.xml());
-        }
-        xml.push('\n');
-        xml.push_str(&self.xml_close_tag());
-        xml
+    pub fn xml(&self) -> DrawFileXml<'_> {
+        DrawFileXml(self)
     }
+}
 
-    pub fn write(&self) -> String {
-        self.xml()
-    }
+pub struct DrawFileXml<'a>(&'a DrawFile);
 
-    fn xml_open_tag(&self) -> String {
-        format!(
+impl<'a> fmt::Display for DrawFileXml<'a> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
             r#"<mxfile host="{}" modified="{}" agent="{}" version="{}" pages="{}">"#,
-            self.host,
-            self.modified(),
-            self.agent(),
-            self.version,
-            self.pages.len()
-        )
-    }
-
-    fn xml_close_tag(&self) -> String {
-        "</mxfile>".to_string()
+            self.0.host,
+            self.0.modified(),
+            self.0.agent(),
+            self.0.version,
+            self.0.pages.len()
+        )?;
+        for page in &self.0.pages {
+            write!(f, "\n  {}", page.xml())?;
+        }
+        write!(f, "\n</mxfile>")
     }
 }
