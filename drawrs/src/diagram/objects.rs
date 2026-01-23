@@ -1,7 +1,7 @@
 use crate::XMLBase;
 use crate::diagram::base_diagram::DiagramBase;
 use crate::diagram::geometry::Geometry;
-use crate::diagram::text_format::TextFormat;
+use crate::diagram::text_format::{Justify, TextFormat};
 
 #[derive(Clone, Debug)]
 pub struct Object {
@@ -172,6 +172,11 @@ impl Object {
         self.update_style();
     }
 
+    pub fn set_justify(&mut self, justify: Justify) {
+        self.text_format.set_justify(justify);
+        self.update_style();
+    }
+
     pub fn rounded(&self) -> Option<bool> {
         self.rounded
     }
@@ -251,6 +256,13 @@ impl Object {
 
     // Parse style string and set all relevant properties using setters
     pub fn parse_and_set_style(&mut self, style_str: &str) {
+        // Parse justify from the entire style string first, but only if it contains align or verticalAlign
+        // Otherwise, preserve the existing justify value
+        if style_str.contains("align=") || style_str.contains("verticalAlign=") {
+            self.text_format
+                .set_justify(crate::diagram::text_format::Justify::parse(style_str));
+        }
+
         for part in style_str.split(';') {
             if part.is_empty() {
                 continue;
@@ -283,6 +295,9 @@ impl Object {
                             if let Ok(fs) = value.parse::<f64>() {
                                 self.set_font_size(Some(fs));
                             }
+                        }
+                        "align" | "verticalAlign" => {
+                            // Already handled by justify parsing above
                         }
                         "polyCoords" => {
                             // Parse polyCoords format: [[x1,y1],[x2,y2],...]
@@ -373,6 +388,23 @@ impl Object {
             self.base.add_style_attribute("fontSize".to_string());
             self.base
                 .set_style_property("fontSize".to_string(), fs.to_string());
+        }
+        let justify_str = self.text_format.justify().format();
+        if !justify_str.is_empty() {
+            // Parse the justify format string and add individual properties
+            for part in justify_str.split(';') {
+                if part.is_empty() {
+                    continue;
+                } else if part.contains('=') {
+                    let parts: Vec<&str> = part.splitn(2, '=').collect();
+                    if parts.len() == 2 {
+                        let key = parts[0].to_string();
+                        let value = parts[1].to_string();
+                        self.base.add_style_attribute(key.clone());
+                        self.base.set_style_property(key, value);
+                    }
+                }
+            }
         }
     }
 

@@ -1,5 +1,6 @@
 use crate::error::{DrawcktError, DrawcktResult};
 use crate::schematic::*;
+use drawrs::diagram::text_format::{Justify, JustifyX, JustifyY};
 use drawrs::xml_base::XMLBase;
 use drawrs::{
     parse_xml_to_object, BoundingBox, DiagramObject, DrawFile, Edge, GroupTransform, Object,
@@ -527,15 +528,37 @@ impl<'a> Renderer<'a> {
                 xy,
                 orient: _,
                 height,
-                justify: _,
+                justify,
             } => {
                 let mut x = xy[0] * SCALE;
                 let mut y = flip_y(xy[1]);
                 let font_height = height * SCALE;
                 let font_width = font_height * text.len() as f64 / 2.0;
                 {
-                    x -= font_width / 2.0;
-                    y -= font_height / 2.0;
+                    // Adjust x based on JustifyX
+                    match justify.x {
+                        JustifyX::Left => {
+                            // x is already at the left edge, no adjustment needed
+                        }
+                        JustifyX::Center => {
+                            x -= font_width / 2.0;
+                        }
+                        JustifyX::Right => {
+                            x -= font_width;
+                        }
+                    }
+                    // Adjust y based on JustifyY
+                    match justify.y {
+                        JustifyY::Top => {
+                            // y is already at the top edge, no adjustment needed
+                        }
+                        JustifyY::Middle => {
+                            y -= font_height / 2.0;
+                        }
+                        JustifyY::Bottom => {
+                            y -= font_height;
+                        }
+                    }
                 }
                 let layer_style = self.get_layer_style(layer);
                 let mut obj = Object::new(Some(obj_id));
@@ -548,6 +571,8 @@ impl<'a> Renderer<'a> {
                 obj.set_font_color(Some(layer_style.text_color.clone()));
                 obj.set_font_size(Some(font_height * layer_style.font_zoom));
                 obj.set_xml_parent(Some(layer.id()));
+                obj.set_justify(*justify);
+                obj.apply_style_string("spacing=0;");
                 page.add_object(obj.into());
             }
             Shape::Polygon {
@@ -700,7 +725,8 @@ impl<'a> Renderer<'a> {
                     instance.x * SCALE,
                     flip_y(instance.y),
                     Orient::from_str(&instance.orient),
-                    instance.name.clone(),
+                    &instance.name,
+                    &instance.cell,
                 );
                 for obj in &symbol_page_data.objects {
                     // Get the new group bounding box
@@ -743,10 +769,13 @@ impl<'a> Renderer<'a> {
                 &Shape::Label {
                     layer: Layer::Pin,
                     text: pin.name.clone(),
-                    xy: [pin.x, pin.y],
+                    xy: [pin.x - 0.175, pin.y],
                     orient: "".to_string(),
                     height: 0.1,
-                    justify: Justify::CenterCenter,
+                    justify: Justify {
+                        x: JustifyX::Right,
+                        y: JustifyY::Middle,
+                    },
                 },
                 &mut schematic_page,
                 &flip_y,

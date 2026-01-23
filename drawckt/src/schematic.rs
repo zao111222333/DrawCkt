@@ -1,5 +1,6 @@
 use core::fmt;
 
+use drawrs::diagram::text_format::Justify;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Hash)]
@@ -246,28 +247,6 @@ impl Shape {
 }
 fn default_fill_style() -> u8 {
     1 // Default: Not filled, only outlined
-}
-
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
-pub enum Justify {
-    #[serde(rename = "upperLeft")]
-    UpperLeft,
-    #[serde(rename = "upperCenter")]
-    UpperCenter,
-    #[serde(rename = "upperRight")]
-    UpperRight,
-    #[serde(rename = "centerLeft")]
-    CenterLeft,
-    #[serde(rename = "centerCenter")]
-    CenterCenter,
-    #[serde(rename = "centerRight")]
-    CenterRight,
-    #[serde(rename = "lowerLeft")]
-    LowerLeft,
-    #[serde(rename = "lowerCenter")]
-    LowerCenter,
-    #[serde(rename = "lowerRight")]
-    LowerRight,
 }
 
 fn deserialize_layer<'de, D>(deserializer: D) -> Result<Layer, D::Error>

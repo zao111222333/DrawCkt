@@ -112,12 +112,13 @@ impl BoundingBox {
         }
     }
 }
-pub struct GroupTransform {
+pub struct GroupTransform<'a> {
     origin_bounding_box: BoundingBox,
     offset_x: f64,
     offset_y: f64,
     orient: Orient,
-    inst_name: String,
+    inst_name: &'a str,
+    cell_name: &'a str,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -173,13 +174,14 @@ impl FlipRotation {
     }
 }
 
-impl GroupTransform {
+impl<'a> GroupTransform<'a> {
     pub fn new(
         origin_bounding_box: BoundingBox,
         offset_x: f64,
         offset_y: f64,
         orient: Orient,
-        inst_name: String,
+        inst_name: &'a str,
+        cell_name: &'a str,
     ) -> Self {
         Self {
             origin_bounding_box,
@@ -187,18 +189,20 @@ impl GroupTransform {
             offset_y,
             orient,
             inst_name,
+            cell_name,
         }
     }
 
     fn update_text(&self, text: Option<&mut String>) {
         if let Some(t) = text {
             *t = t.replace("[@cellName]", &self.inst_name);
+            *t = t.replace("cdsName()", &self.cell_name);
         }
     }
 
     /// Transform points from origin coordinates to group-relative coordinates
     /// Points remain in their original coordinates (no transform applied)
-    fn update_points<'a, I: Iterator<Item = &'a mut [f64; 2]>>(
+    fn update_points<'b, I: Iterator<Item = &'b mut [f64; 2]>>(
         &self,
         points: I,
     ) -> DrawrsResult<()> {
@@ -263,7 +267,7 @@ impl GroupTransform {
         let mut new_obj: DiagramObject = obj.clone();
         new_obj.set_id(format!("{}-{}", self.inst_name, new_obj.id()));
         self.update_text(new_obj.text_mut());
-        new_obj.set_tag(Some(self.inst_name.clone()));
+        new_obj.set_tag(Some(self.inst_name.to_owned()));
         if let Some(parent) = new_obj.xml_parent() {
             if parent.starts_with("layer-") {
                 self.update_points(new_obj.mut_points())?;
