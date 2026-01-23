@@ -45,7 +45,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     obj5.set_value("Styled".to_string());
     obj5.set_position([300.0, 250.0]);
     obj5.apply_style_string(
-        "whiteSpace=wrap;rounded=1;fillColor=#6a00ff;strokeColor=#000000;opacity=80;",
+        "rounded=1;fillColor=#6a00ff;strokeColor=#000000;opacity=80;",
     );
     obj5.set_xml_parent(Some("1".to_string()));
     page.add_object(obj5.into());

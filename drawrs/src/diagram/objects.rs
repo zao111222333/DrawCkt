@@ -24,7 +24,6 @@ pub struct Object {
 impl Object {
     pub fn new(id: Option<String>) -> Self {
         let mut base = DiagramBase::new(id);
-        base.add_style_attribute("whiteSpace".to_string());
         base.add_style_attribute("rounded".to_string());
         base.add_style_attribute("fillColor".to_string());
         base.add_style_attribute("strokeColor".to_string());
@@ -36,7 +35,7 @@ impl Object {
         let mut obj = Self {
             base,
             geometry: geom,
-            white_space: Some("wrap".to_string()),
+            white_space: None,
             rounded: None,
             fill_color: None,
             stroke_color: None,
@@ -164,11 +163,11 @@ impl Object {
         self.update_style();
     }
 
-    pub fn font_size(&self) -> Option<i32> {
+    pub fn font_size(&self) -> Option<f64> {
         self.text_format.font_size()
     }
 
-    pub fn set_font_size(&mut self, size: Option<i32>) {
+    pub fn set_font_size(&mut self, size: Option<f64>) {
         self.text_format.set_font_size(size);
         self.update_style();
     }
@@ -281,7 +280,7 @@ impl Object {
                         }
                         "fontColor" => self.set_font_color(Some(value.to_string())),
                         "fontSize" => {
-                            if let Ok(fs) = value.parse::<i32>() {
+                            if let Ok(fs) = value.parse::<f64>() {
                                 self.set_font_size(Some(fs));
                             }
                         }

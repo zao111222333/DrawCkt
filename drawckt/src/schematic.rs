@@ -37,7 +37,7 @@ pub struct LayerStyle {
     pub stroke_color: String,
     pub stroke_width: f64,
     pub text_color: String,
-    pub font_size: f64,
+    pub font_zoom: f64,
     #[serde(default = "default_sch_visible")]
     pub sch_visible: bool,
 }
@@ -52,7 +52,7 @@ impl Default for LayerStyle {
             stroke_color: "#000000".to_string(),
             stroke_width: 1.0,
             text_color: "#000000".to_string(),
-            font_size: 16.0,
+            font_zoom: 1.0,
             sch_visible: true,
         }
     }
@@ -85,21 +85,21 @@ impl Default for LayerStyles {
                 stroke_color: "#00FF00".to_string(),
                 stroke_width: 2.0,
                 text_color: "#FF0000".to_string(),
-                font_size: 16.0,
+                font_zoom: 1.0,
                 sch_visible: true,
             },
             instance: LayerStyle {
                 stroke_color: "#0000FF".to_string(),
                 stroke_width: 1.0,
                 text_color: "#0000FF".to_string(),
-                font_size: 16.0,
+                font_zoom: 1.0,
                 sch_visible: false,
             },
             wire: LayerStyle {
                 stroke_color: "#00FFFF".to_string(),
                 stroke_width: 2.0,
                 text_color: "#00CCCC".to_string(),
-                font_size: 16.0,
+                font_zoom: 1.0,
                 sch_visible: true,
             },
             wire_show_intersection: true,
@@ -107,21 +107,21 @@ impl Default for LayerStyles {
                 stroke_color: "#00FF00".to_string(),
                 stroke_width: 1.0,
                 text_color: "#FF9900".to_string(),
-                font_size: 10.0,
+                font_zoom: 1.0,
                 sch_visible: false,
             },
             pin: LayerStyle {
                 stroke_color: "#FF0000".to_string(),
                 stroke_width: 2.0,
                 text_color: "#FF0000".to_string(),
-                font_size: 16.0,
+                font_zoom: 1.0,
                 sch_visible: true,
             },
             text: LayerStyle {
                 stroke_color: "#666666".to_string(),
                 stroke_width: 1.0,
                 text_color: "#666666".to_string(),
-                font_size: 16.0,
+                font_zoom: 1.0,
                 sch_visible: true,
             },
         }

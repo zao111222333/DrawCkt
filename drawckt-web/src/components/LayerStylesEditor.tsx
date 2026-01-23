@@ -33,7 +33,7 @@ const areStylesEqual = (a: LayerStyles, b: LayerStyles): boolean => {
       layerA.stroke_color !== layerB.stroke_color ||
       Math.abs(layerA.stroke_width - layerB.stroke_width) > Number.EPSILON ||
       layerA.text_color !== layerB.text_color ||
-      Math.abs(layerA.font_size - layerB.font_size) > Number.EPSILON ||
+      Math.abs(layerA.font_zoom - layerB.font_zoom) > Number.EPSILON ||
       layerA.priority !== layerB.priority ||
       layerA.sch_visible !== layerB.sch_visible
     ) {
@@ -455,7 +455,7 @@ const LayerStylesEditor: React.FC<LayerStylesEditorProps> = ({
                   <input
                     type="number"
                     step="0.1"
-                    value={layer.stroke_width}
+                    value={Math.round(layer.stroke_width * 100) / 100}
                     onChange={(e) => updateLayer(key, 'stroke_width', parseFloat(e.target.value))}
                   />
                 </div>
@@ -474,12 +474,14 @@ const LayerStylesEditor: React.FC<LayerStylesEditorProps> = ({
                   />
                 </div>
                 <div className="field">
-                  <label>Font Size</label>
+                  <label>Text Scale</label>
                   <input
                     type="number"
-                    step="0.5"
-                    value={layer.font_size}
-                    onChange={(e) => updateLayer(key, 'font_size', parseFloat(e.target.value))}
+                    step="5"
+                    min="0"
+                    max="1000"
+                    value={Math.round(layer.font_zoom * 100 * 100) / 100}
+                    onChange={(e) => updateLayer(key, 'font_zoom', parseFloat(e.target.value) / 100)}
                   />
                 </div>
                 <div className="field">

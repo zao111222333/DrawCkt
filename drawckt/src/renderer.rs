@@ -549,22 +549,27 @@ impl Renderer {
                 text,
                 xy,
                 orient: _,
-                height: _,
+                height,
                 justify: _,
             } => {
-                let x = xy[0] * SCALE;
-                let y = flip_y(xy[1]);
-
+                let mut x = xy[0] * SCALE;
+                let mut y = flip_y(xy[1]);
+                let font_height = height * SCALE;
+                let font_width = font_height * text.len() as f64 / 2.0;
+                {
+                    x -= font_width / 2.0;
+                    y -= font_height / 2.0;
+                }
                 let layer_style = self.get_layer_style(layer);
                 let mut obj = Object::new(Some(obj_id));
                 obj.set_value(text.clone());
                 obj.set_position([x, y]);
-                obj.set_width(100.0);
-                obj.set_height(30.0);
+                obj.set_width(font_width);
+                obj.set_height(font_height);
                 obj.set_fill_color(Some("none".to_string()));
                 obj.set_stroke_color(Some("none".to_string()));
                 obj.set_font_color(Some(layer_style.text_color.clone()));
-                obj.set_font_size(Some(layer_style.font_size as i32));
+                obj.set_font_size(Some(font_height * layer_style.font_zoom));
                 obj.set_xml_parent(Some(layer.id()));
                 page.add_object(obj.into());
             }
@@ -736,9 +741,6 @@ impl Renderer {
 
         for (net_name, lines) in wires_by_net {
             // Merge lines that share endpoints
-            if net_name == "net10" {
-                dbg!(&lines);
-            }
             let merged_lines = Self::merge_lines(lines);
 
             // Render each merged line using render_shape
@@ -760,25 +762,8 @@ impl Renderer {
         // Render pins in pin layer
         let mut pin_counter = 0;
         for pin in &self.schematic.pins {
-            let x = pin.x * SCALE;
-            let y = flip_y(pin.y);
-
-            let layer_style = self.get_layer_style(&Layer::Pin);
-            let pin_id = format!("pin-{}-{}", pin.name, pin_counter);
+            self.render_shape(&Shape::Label { layer: Layer::Pin, text: pin.name.clone(), xy: [pin.x, pin.y], orient: "".to_string(), height: 0.1, justify: Justify::CenterCenter }, &mut schematic_page, &flip_y, format!("pin-{}", pin_counter))?;
             pin_counter += 1;
-
-            let mut obj = Object::new(Some(pin_id));
-            obj.set_value(pin.name.clone());
-            obj.set_position([x, y]);
-            obj.set_width(100.0);
-            obj.set_height(30.0);
-            obj.set_fill_color(Some("none".to_string()));
-            obj.set_stroke_color(Some("none".to_string()));
-            obj.set_font_color(Some(layer_style.text_color.clone()));
-            obj.set_font_size(Some(layer_style.font_size as i32));
-            // Set parent to pin layer id
-            obj.set_xml_parent(Some(Layer::Pin.id()));
-            schematic_page.add_object(obj.into());
         }
 
         // Render labels

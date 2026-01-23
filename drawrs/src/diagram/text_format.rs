@@ -1,6 +1,6 @@
 #[derive(Clone, Debug)]
 pub struct TextFormat {
-    font_size: Option<i32>,
+    font_size: Option<f64>,
     font_color: Option<String>,
     // bold: bool,
     // italic: bool,
@@ -26,11 +26,11 @@ impl TextFormat {
         self.font_color = color;
     }
 
-    pub fn font_size(&self) -> Option<i32> {
+    pub fn font_size(&self) -> Option<f64> {
         self.font_size
     }
 
-    pub fn set_font_size(&mut self, size: Option<i32>) {
+    pub fn set_font_size(&mut self, size: Option<f64>) {
         self.font_size = size;
     }
 }
