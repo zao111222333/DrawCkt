@@ -23,6 +23,11 @@ const areStylesEqual = (a: LayerStyles, b: LayerStyles): boolean => {
     return false;
   }
   
+  // Check wire_intersection_scale
+  if (Math.abs(a.wire_intersection_scale - b.wire_intersection_scale) > Number.EPSILON) {
+    return false;
+  }
+  
   const layerKeys: Array<'instance' | 'device' | 'annotate' | 'pin' | 'wire' | 'text'> = ['instance', 'device', 'annotate', 'pin', 'wire', 'text'];
   
   for (const layerKey of layerKeys) {
@@ -55,6 +60,7 @@ const deepCopyLayerStyles = (styles: LayerStyles): LayerStyles => {
     pin: { ...styles.pin },
     wire: { ...styles.wire },
     wire_show_intersection: styles.wire_show_intersection,
+    wire_intersection_scale: styles.wire_intersection_scale,
     text: { ...styles.text },
   };
 };
@@ -294,6 +300,13 @@ const LayerStylesEditor: React.FC<LayerStylesEditorProps> = ({
     setLocalStyles({
       ...localStyles,
       wire_show_intersection: value,
+    });
+  };
+
+  const updateWireIntersectionScale = (value: number) => {
+    setLocalStyles({
+      ...localStyles,
+      wire_intersection_scale: value,
     });
   };
 
@@ -607,84 +620,120 @@ const LayerStylesEditor: React.FC<LayerStylesEditorProps> = ({
             </div>
             {isExpanded && (
               <div className="layer-fields">
-                <div className="field">
-                  <label>Text Font</label>
-                  <FontInput
-                    value={layer.font_family}
-                    onChange={(value) => updateLayer(key, 'font_family', value)}
-                    id={`font-input-${key}`}
-                  />
-                </div>
-                <div className="field">
-                  <label>Text Color</label>
-                  <input
-                    type="color"
-                    value={layer.text_color}
-                    onChange={(e) => updateLayer(key, 'text_color', e.target.value)}
-                  />
-                  <input
-                    type="text"
-                    value={layer.text_color}
-                    onChange={(e) => updateLayer(key, 'text_color', e.target.value)}
-                    className="color-text"
-                  />
-                </div>
-                <div className="field">
-                  <label>Text Scale</label>
-                  <input
-                    type="number"
-                    step="5"
-                    min="0"
-                    max="1000"
-                    value={Math.round(layer.font_zoom * 100 * 100) / 100}
-                    onChange={(e) => updateLayer(key, 'font_zoom', parseFloat(e.target.value) / 100)}
-                  />
-                </div>
-                <div className="field">
-                  <label>Line Color</label>
-                  <input
-                    type="color"
-                    value={layer.stroke_color}
-                    onChange={(e) => updateLayer(key, 'stroke_color', e.target.value)}
-                  />
-                  <input
-                    type="text"
-                    value={layer.stroke_color}
-                    onChange={(e) => updateLayer(key, 'stroke_color', e.target.value)}
-                    className="color-text"
-                  />
-                </div>
-                <div className="field">
-                  <label>Line Width</label>
-                  <input
-                    type="number"
-                    step="0.1"
-                    value={Math.round(layer.stroke_width * 100) / 100}
-                    onChange={(e) => updateLayer(key, 'stroke_width', parseFloat(e.target.value))}
-                  />
-                </div>
-                <div className="field">
-                  <label>
-                    <input
-                      type="checkbox"
-                      checked={layer.sch_visible}
-                      onChange={(e) => updateLayer(key, 'sch_visible', e.target.checked)}
-                    />
-                    Schematic Visible
-                  </label>
-                </div>
-                {key === 'wire' && (
-                  <div className="field">
-                    <label>
-                      <input
-                        type="checkbox"
-                        checked={localStyles.wire_show_intersection}
-                        onChange={(e) => updateWireShowIntersection(e.target.checked)}
+                {/* Text Group */}
+                <div className="field-group">
+                  <div className="field-group-title">Label</div>
+                  <div className="field-group-content">
+                    <div className="field">
+                      <label>Font</label>
+                      <FontInput
+                        value={layer.font_family}
+                        onChange={(value) => updateLayer(key, 'font_family', value)}
+                        id={`font-input-${key}`}
                       />
-                      Show Intersection
-                    </label>
+                    </div>
+                    <div className="field">
+                      <label>Color</label>
+                      <input
+                        type="color"
+                        value={layer.text_color}
+                        onChange={(e) => updateLayer(key, 'text_color', e.target.value)}
+                      />
+                      <input
+                        type="text"
+                        value={layer.text_color}
+                        onChange={(e) => updateLayer(key, 'text_color', e.target.value)}
+                        className="color-text"
+                      />
+                    </div>
+                    <div className="field">
+                      <label>Scale (%)</label>
+                      <input
+                        type="number"
+                        step="10"
+                        min="0"
+                        value={Math.round(layer.font_zoom * 100 * 100) / 100}
+                        onChange={(e) => updateLayer(key, 'font_zoom', parseFloat(e.target.value) / 100)}
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Line Group */}
+                <div className="field-group">
+                  <div className="field-group-title">Shape</div>
+                  <div className="field-group-content">
+                    <div className="field">
+                      <label>Color</label>
+                      <input
+                        type="color"
+                        value={layer.stroke_color}
+                        onChange={(e) => updateLayer(key, 'stroke_color', e.target.value)}
+                      />
+                      <input
+                        type="text"
+                        value={layer.stroke_color}
+                        onChange={(e) => updateLayer(key, 'stroke_color', e.target.value)}
+                        className="color-text"
+                      />
+                    </div>
+                    <div className="field">
+                      <label>Width</label>
+                      <input
+                        type="number"
+                        step="0.1"
+                        value={Math.round(layer.stroke_width * 100) / 100}
+                        onChange={(e) => updateLayer(key, 'stroke_width', parseFloat(e.target.value))}
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Intersection Group (only for wire layer) */}
+                {key === 'wire' && (
+                  <div className="field-group">
+                    <div className="field-group-title">Intersection</div>
+                    <div className="field-group-content">
+                      <div className="field">
+                        <label>Scale (%)</label>
+                        <input
+                          type="number"
+                          step="10"
+                          min="0"
+                          value={Math.round(localStyles.wire_intersection_scale * 100 * 100) / 100}
+                          onChange={(e) => updateWireIntersectionScale(parseFloat(e.target.value) / 100)}
+                        />
+                      </div>
+                      <div className="field">
+                        <label>
+                          <input
+                            type="checkbox"
+                            checked={localStyles.wire_show_intersection}
+                            onChange={(e) => updateWireShowIntersection(e.target.checked)}
+                          />
+                          Show
+                        </label>
+                      </div>
+                    </div>
                   </div>
                 )}
+
+                {/* Visible in Schematic */}
+                <div className="field-group">
+                  <div className="field-group-title"></div>
+                  <div className="field-group-content">
+                    <div className="field">
+                      <label>
+                        <input
+                          type="checkbox"
+                          checked={layer.sch_visible}
+                          onChange={(e) => updateLayer(key, 'sch_visible', e.target.checked)}
+                        />
+                        Show in Schematic
+                      </label>
+                    </div>
+                  </div>
+                </div>
               </div>
             )}
           </div>

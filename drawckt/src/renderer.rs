@@ -792,11 +792,48 @@ impl<'a> Renderer<'a> {
         // Render shapes (with wire_show_intersection check)
         for (i, shape) in self.schematic.shapes.iter().enumerate() {
             // Skip wire layer shapes if wire_show_intersection is false
-            if shape.layer().eq(&Layer::Wire) && !self.layer_styles.wire_show_intersection {
-                continue;
+            if shape.layer().eq(&Layer::Wire) {
+                if self.layer_styles.wire_show_intersection {
+                    if let Shape::Ellipse {
+                        layer,
+                        fill_style,
+                        b_box,
+                    } = shape
+                    {
+                        // Scale the bounding box while keeping the center point unchanged
+                        let scale = self.layer_styles.wire_intersection_scale;
+                        let center_x = (b_box[0][0] + b_box[1][0]) / 2.0;
+                        let center_y = (b_box[0][1] + b_box[1][1]) / 2.0;
+                        let width = b_box[1][0] - b_box[0][0];
+                        let height = b_box[1][1] - b_box[0][1];
+                        let new_width = width * scale;
+                        let new_height = height * scale;
+                        let scaled_b_box = [
+                            [center_x - new_width / 2.0, center_y - new_height / 2.0],
+                            [center_x + new_width / 2.0, center_y + new_height / 2.0],
+                        ];
+                        self.render_shape(
+                            &Shape::Ellipse {
+                                layer: *layer,
+                                fill_style: *fill_style,
+                                b_box: scaled_b_box,
+                            },
+                            &mut schematic_page,
+                            &flip_y,
+                            format!("shape-{i}"),
+                        )?;
+                    } else {
+                        self.render_shape(
+                            shape,
+                            &mut schematic_page,
+                            &flip_y,
+                            format!("shape-{i}"),
+                        )?;
+                    }
+                }
+            } else {
+                self.render_shape(shape, &mut schematic_page, &flip_y, format!("shape-{i}"))?;
             }
-
-            self.render_shape(shape, &mut schematic_page, &flip_y, format!("shape-{i}"))?;
         }
 
         schematic_file.add_page(schematic_page);

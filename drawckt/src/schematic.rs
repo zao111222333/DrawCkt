@@ -51,7 +51,6 @@ fn default_font_family_code() -> String {
     "Verdana".to_string()
 }
 
-
 impl Default for LayerStyle {
     fn default() -> Self {
         Self {
@@ -72,6 +71,7 @@ pub struct LayerStyles {
     pub instance: LayerStyle,
     pub wire: LayerStyle,
     pub wire_show_intersection: bool,
+    pub wire_intersection_scale: f64,
     pub annotate: LayerStyle,
     pub pin: LayerStyle,
     pub text: LayerStyle,
@@ -113,6 +113,7 @@ impl Default for LayerStyles {
                 sch_visible: true,
             },
             wire_show_intersection: true,
+            wire_intersection_scale: 1.0,
             annotate: LayerStyle {
                 stroke_color: "#00FF00".to_string(),
                 stroke_width: 1.0,
@@ -216,7 +217,7 @@ pub enum Shape {
         #[serde(rename = "fillStyle", default = "default_fill_style")]
         fill_style: u8,
         #[serde(rename = "bBox")]
-        b_box: Vec<[f64; 2]>,
+        b_box: [[f64; 2]; 2],
     },
     #[serde(rename = "label")]
     Label {
@@ -241,7 +242,7 @@ pub enum Shape {
         #[serde(rename = "fillStyle", default = "default_fill_style")]
         fill_style: u8,
         #[serde(rename = "bBox")]
-        b_box: Vec<[f64; 2]>,
+        b_box: [[f64; 2]; 2],
     },
 }
 

@@ -141,13 +141,42 @@
   padding: 16px;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 16px;
   background: #ffffff;
   transition: background-color 0.3s ease;
 }
 
 :root.dark-mode .layer-fields {
   background: #2d2d2d;
+}
+
+.field-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.field-group-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: #6c757d;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid #e9ecef;
+  transition: color 0.3s ease, border-color 0.3s ease;
+}
+
+:root.dark-mode .field-group-title {
+  color: #a0a0a0;
+  border-color: #404040;
+}
+
+.field-group-content {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding-left: 8px;
 }
 
 .field {
@@ -170,11 +199,10 @@
 }
 
 .field input[type="color"] {
-  width: 36px;
-  min-width: 36px;
-  max-width: 36px;
-  height: 36px;
-  border: 1px solid #e9ecef;
+  width: 30px;
+  min-width: 30px;
+  max-width: 30px;
+  height: 30px;
   border-radius: 6px;
   cursor: pointer;
   transition: border-color 0.2s ease;
@@ -186,9 +214,9 @@
 }
 
 .field input[type="text"].color-text {
-  width: 100px;
-  max-width: 100px;
-  padding: 8px 12px;
+  width: 106px;
+  max-width: 106px;
+  padding: 6px 12px;
   border: 1px solid #e9ecef;
   border-radius: 6px;
   font-size: 13px;
@@ -213,7 +241,7 @@
 .field input[type="number"] {
   width: 136px;
   max-width: 136px;
-  padding: 8px 12px;
+  padding: 6px 12px;
   border: 1px solid #e9ecef;
   border-radius: 6px;
   font-size: 13px;
@@ -240,8 +268,8 @@
 }
 
 .font-input {
-  width: 100%;
-  max-width: 200px;
+  width: 136px;
+  max-width: 136px;
   padding: 8px 12px;
   border: 1px solid #e9ecef;
   border-radius: 6px;

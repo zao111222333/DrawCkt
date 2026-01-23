@@ -396,7 +396,7 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({
         </section>
         
         <section className="settings-section">
-          <h3>Layers</h3>
+          <h3>Layer Style: </h3>
           {layerStyles && (
             <LayerStylesEditor
               styles={layerStyles}

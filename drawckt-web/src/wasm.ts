@@ -42,6 +42,7 @@ export interface LayerStyles {
   pin: LayerStyle;
   wire: LayerStyle;
   wire_show_intersection: boolean;
+  wire_intersection_scale: number;
   text: LayerStyle;
 }
 
