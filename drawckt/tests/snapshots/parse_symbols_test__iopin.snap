@@ -24,25 +24,8 @@ expression: pages
                             ),
                             group_geometry: None,
                         },
-                        style_attributes: [
-                            "html",
-                            "rounded",
-                            "fillColor",
-                            "strokeColor",
-                            "opacity",
-                            "whiteSpace",
-                            "strokeWidth",
-                            "fillStyle",
-                        ],
                         page: None,
-                        base_style: None,
-                        style_properties: {
-                            "whiteSpace": "wrap",
-                            "fillColor": "#0000FF",
-                            "strokeColor": "none",
-                            "strokeWidth": "1",
-                            "fillStyle": "cross-hatch",
-                        },
+                        unsupported_style_properties: {},
                     },
                     geometry: Geometry {
                         bounding_box: BoundingBox {
@@ -77,9 +60,16 @@ expression: pages
                         1.0,
                     ),
                     opacity: None,
+                    fill_style: Some(
+                        CrossHatch,
+                    ),
                     text_format: TextFormat {
                         font_size: None,
                         font_color: None,
+                        justify: Justify {
+                            x: Center,
+                            y: Middle,
+                        },
                     },
                     vertex: 1,
                     poly_coords: [],
@@ -104,23 +94,8 @@ expression: pages
                             ),
                             group_geometry: None,
                         },
-                        style_attributes: [
-                            "html",
-                            "rounded",
-                            "fillColor",
-                            "strokeColor",
-                            "opacity",
-                            "whiteSpace",
-                            "strokeWidth",
-                            "shape",
-                        ],
                         page: None,
-                        base_style: None,
-                        style_properties: {
-                            "whiteSpace": "wrap",
-                            "fillColor": "none",
-                            "strokeColor": "#00FF00",
-                            "strokeWidth": "1",
+                        unsupported_style_properties: {
                             "shape": "mxgraph.basic.polygon",
                         },
                     },
@@ -157,9 +132,14 @@ expression: pages
                         1.0,
                     ),
                     opacity: None,
+                    fill_style: None,
                     text_format: TextFormat {
                         font_size: None,
                         font_color: None,
+                        justify: Justify {
+                            x: Center,
+                            y: Middle,
+                        },
                     },
                     vertex: 1,
                     poly_coords: [
@@ -209,23 +189,8 @@ expression: pages
                             ),
                             group_geometry: None,
                         },
-                        style_attributes: [
-                            "html",
-                            "rounded",
-                            "fillColor",
-                            "strokeColor",
-                            "opacity",
-                            "whiteSpace",
-                            "strokeWidth",
-                            "shape",
-                        ],
                         page: None,
-                        base_style: None,
-                        style_properties: {
-                            "whiteSpace": "wrap",
-                            "fillColor": "#FF0000",
-                            "strokeColor": "none",
-                            "strokeWidth": "2",
+                        unsupported_style_properties: {
                             "shape": "mxgraph.basic.polygon",
                         },
                     },
@@ -262,9 +227,14 @@ expression: pages
                         2.0,
                     ),
                     opacity: None,
+                    fill_style: None,
                     text_format: TextFormat {
                         font_size: None,
                         font_color: None,
+                        justify: Justify {
+                            x: Center,
+                            y: Middle,
+                        },
                     },
                     vertex: 1,
                     poly_coords: [

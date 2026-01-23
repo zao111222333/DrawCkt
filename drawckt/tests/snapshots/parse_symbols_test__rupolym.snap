@@ -22,23 +22,8 @@ expression: pages
                             ),
                             group_geometry: None,
                         },
-                        style_attributes: [
-                            "html",
-                            "rounded",
-                            "fillColor",
-                            "strokeColor",
-                            "opacity",
-                            "whiteSpace",
-                            "strokeWidth",
-                        ],
                         page: None,
-                        base_style: None,
-                        style_properties: {
-                            "whiteSpace": "wrap",
-                            "fillColor": "none",
-                            "strokeColor": "#0000FF",
-                            "strokeWidth": "1",
-                        },
+                        unsupported_style_properties: {},
                     },
                     geometry: Geometry {
                         bounding_box: BoundingBox {
@@ -73,9 +58,14 @@ expression: pages
                         1.0,
                     ),
                     opacity: None,
+                    fill_style: None,
                     text_format: TextFormat {
                         font_size: None,
                         font_color: None,
+                        justify: Justify {
+                            x: Center,
+                            y: Middle,
+                        },
                     },
                     vertex: 1,
                     poly_coords: [],
@@ -98,25 +88,8 @@ expression: pages
                             ),
                             group_geometry: None,
                         },
-                        style_attributes: [
-                            "html",
-                            "rounded",
-                            "fillColor",
-                            "strokeColor",
-                            "opacity",
-                            "whiteSpace",
-                            "fontColor",
-                            "fontSize",
-                        ],
                         page: None,
-                        base_style: None,
-                        style_properties: {
-                            "whiteSpace": "wrap",
-                            "fillColor": "none",
-                            "strokeColor": "none",
-                            "fontColor": "#FF0000",
-                            "fontSize": "16",
-                        },
+                        unsupported_style_properties: {},
                     },
                     geometry: Geometry {
                         bounding_box: BoundingBox {
@@ -149,6 +122,7 @@ expression: pages
                     ),
                     stroke_width: None,
                     opacity: None,
+                    fill_style: None,
                     text_format: TextFormat {
                         font_size: Some(
                             16.0,
@@ -156,6 +130,10 @@ expression: pages
                         font_color: Some(
                             "#FF0000",
                         ),
+                        justify: Justify {
+                            x: Center,
+                            y: Middle,
+                        },
                     },
                     vertex: 1,
                     poly_coords: [],
@@ -178,28 +156,8 @@ expression: pages
                             ),
                             group_geometry: None,
                         },
-                        style_attributes: [
-                            "html",
-                            "rounded",
-                            "strokeColor",
-                            "strokeWidth",
-                            "fillColor",
-                            "endArrow",
-                            "startArrow",
-                            "endFill",
-                            "startFill",
-                            "endSize",
-                            "startSize",
-                            "opacity",
-                        ],
                         page: None,
-                        base_style: None,
-                        style_properties: {
-                            "endArrow": "none",
-                            "rounded": "0",
-                            "strokeColor": "#00FF00",
-                            "strokeWidth": "2",
-                        },
+                        unsupported_style_properties: {},
                     },
                     source: None,
                     target: None,
@@ -307,25 +265,8 @@ expression: pages
                             ),
                             group_geometry: None,
                         },
-                        style_attributes: [
-                            "html",
-                            "rounded",
-                            "fillColor",
-                            "strokeColor",
-                            "opacity",
-                            "whiteSpace",
-                            "fontColor",
-                            "fontSize",
-                        ],
                         page: None,
-                        base_style: None,
-                        style_properties: {
-                            "whiteSpace": "wrap",
-                            "fillColor": "none",
-                            "strokeColor": "none",
-                            "fontColor": "#FF9900",
-                            "fontSize": "10",
-                        },
+                        unsupported_style_properties: {},
                     },
                     geometry: Geometry {
                         bounding_box: BoundingBox {
@@ -358,6 +299,7 @@ expression: pages
                     ),
                     stroke_width: None,
                     opacity: None,
+                    fill_style: None,
                     text_format: TextFormat {
                         font_size: Some(
                             10.0,
@@ -365,6 +307,10 @@ expression: pages
                         font_color: Some(
                             "#FF9900",
                         ),
+                        justify: Justify {
+                            x: Center,
+                            y: Middle,
+                        },
                     },
                     vertex: 1,
                     poly_coords: [],
@@ -387,25 +333,8 @@ expression: pages
                             ),
                             group_geometry: None,
                         },
-                        style_attributes: [
-                            "html",
-                            "rounded",
-                            "fillColor",
-                            "strokeColor",
-                            "opacity",
-                            "whiteSpace",
-                            "fontColor",
-                            "fontSize",
-                        ],
                         page: None,
-                        base_style: None,
-                        style_properties: {
-                            "whiteSpace": "wrap",
-                            "fillColor": "none",
-                            "strokeColor": "none",
-                            "fontColor": "#FF9900",
-                            "fontSize": "10",
-                        },
+                        unsupported_style_properties: {},
                     },
                     geometry: Geometry {
                         bounding_box: BoundingBox {
@@ -438,6 +367,7 @@ expression: pages
                     ),
                     stroke_width: None,
                     opacity: None,
+                    fill_style: None,
                     text_format: TextFormat {
                         font_size: Some(
                             10.0,
@@ -445,6 +375,10 @@ expression: pages
                         font_color: Some(
                             "#FF9900",
                         ),
+                        justify: Justify {
+                            x: Center,
+                            y: Middle,
+                        },
                     },
                     vertex: 1,
                     poly_coords: [],
@@ -467,25 +401,8 @@ expression: pages
                             ),
                             group_geometry: None,
                         },
-                        style_attributes: [
-                            "html",
-                            "rounded",
-                            "fillColor",
-                            "strokeColor",
-                            "opacity",
-                            "whiteSpace",
-                            "fontColor",
-                            "fontSize",
-                        ],
                         page: None,
-                        base_style: None,
-                        style_properties: {
-                            "whiteSpace": "wrap",
-                            "fillColor": "none",
-                            "strokeColor": "none",
-                            "fontColor": "#FF9900",
-                            "fontSize": "10",
-                        },
+                        unsupported_style_properties: {},
                     },
                     geometry: Geometry {
                         bounding_box: BoundingBox {
@@ -518,6 +435,7 @@ expression: pages
                     ),
                     stroke_width: None,
                     opacity: None,
+                    fill_style: None,
                     text_format: TextFormat {
                         font_size: Some(
                             10.0,
@@ -525,6 +443,10 @@ expression: pages
                         font_color: Some(
                             "#FF9900",
                         ),
+                        justify: Justify {
+                            x: Center,
+                            y: Middle,
+                        },
                     },
                     vertex: 1,
                     poly_coords: [],
@@ -547,25 +469,8 @@ expression: pages
                             ),
                             group_geometry: None,
                         },
-                        style_attributes: [
-                            "html",
-                            "rounded",
-                            "fillColor",
-                            "strokeColor",
-                            "opacity",
-                            "whiteSpace",
-                            "fontColor",
-                            "fontSize",
-                        ],
                         page: None,
-                        base_style: None,
-                        style_properties: {
-                            "whiteSpace": "wrap",
-                            "fillColor": "none",
-                            "strokeColor": "none",
-                            "fontColor": "#FF9900",
-                            "fontSize": "10",
-                        },
+                        unsupported_style_properties: {},
                     },
                     geometry: Geometry {
                         bounding_box: BoundingBox {
@@ -598,6 +503,7 @@ expression: pages
                     ),
                     stroke_width: None,
                     opacity: None,
+                    fill_style: None,
                     text_format: TextFormat {
                         font_size: Some(
                             10.0,
@@ -605,6 +511,10 @@ expression: pages
                         font_color: Some(
                             "#FF9900",
                         ),
+                        justify: Justify {
+                            x: Center,
+                            y: Middle,
+                        },
                     },
                     vertex: 1,
                     poly_coords: [],
@@ -627,25 +537,8 @@ expression: pages
                             ),
                             group_geometry: None,
                         },
-                        style_attributes: [
-                            "html",
-                            "rounded",
-                            "fillColor",
-                            "strokeColor",
-                            "opacity",
-                            "whiteSpace",
-                            "fontColor",
-                            "fontSize",
-                        ],
                         page: None,
-                        base_style: None,
-                        style_properties: {
-                            "whiteSpace": "wrap",
-                            "fillColor": "none",
-                            "strokeColor": "none",
-                            "fontColor": "#FF9900",
-                            "fontSize": "10",
-                        },
+                        unsupported_style_properties: {},
                     },
                     geometry: Geometry {
                         bounding_box: BoundingBox {
@@ -678,6 +571,7 @@ expression: pages
                     ),
                     stroke_width: None,
                     opacity: None,
+                    fill_style: None,
                     text_format: TextFormat {
                         font_size: Some(
                             10.0,
@@ -685,6 +579,10 @@ expression: pages
                         font_color: Some(
                             "#FF9900",
                         ),
+                        justify: Justify {
+                            x: Center,
+                            y: Middle,
+                        },
                     },
                     vertex: 1,
                     poly_coords: [],
@@ -707,25 +605,8 @@ expression: pages
                             ),
                             group_geometry: None,
                         },
-                        style_attributes: [
-                            "html",
-                            "rounded",
-                            "fillColor",
-                            "strokeColor",
-                            "opacity",
-                            "whiteSpace",
-                            "fontColor",
-                            "fontSize",
-                        ],
                         page: None,
-                        base_style: None,
-                        style_properties: {
-                            "whiteSpace": "wrap",
-                            "fillColor": "none",
-                            "strokeColor": "none",
-                            "fontColor": "#FF9900",
-                            "fontSize": "10",
-                        },
+                        unsupported_style_properties: {},
                     },
                     geometry: Geometry {
                         bounding_box: BoundingBox {
@@ -758,6 +639,7 @@ expression: pages
                     ),
                     stroke_width: None,
                     opacity: None,
+                    fill_style: None,
                     text_format: TextFormat {
                         font_size: Some(
                             10.0,
@@ -765,6 +647,10 @@ expression: pages
                         font_color: Some(
                             "#FF9900",
                         ),
+                        justify: Justify {
+                            x: Center,
+                            y: Middle,
+                        },
                     },
                     vertex: 1,
                     poly_coords: [],
@@ -787,25 +673,8 @@ expression: pages
                             ),
                             group_geometry: None,
                         },
-                        style_attributes: [
-                            "html",
-                            "rounded",
-                            "fillColor",
-                            "strokeColor",
-                            "opacity",
-                            "whiteSpace",
-                            "fontColor",
-                            "fontSize",
-                        ],
                         page: None,
-                        base_style: None,
-                        style_properties: {
-                            "whiteSpace": "wrap",
-                            "fillColor": "none",
-                            "strokeColor": "none",
-                            "fontColor": "#FF9900",
-                            "fontSize": "10",
-                        },
+                        unsupported_style_properties: {},
                     },
                     geometry: Geometry {
                         bounding_box: BoundingBox {
@@ -838,6 +707,7 @@ expression: pages
                     ),
                     stroke_width: None,
                     opacity: None,
+                    fill_style: None,
                     text_format: TextFormat {
                         font_size: Some(
                             10.0,
@@ -845,6 +715,10 @@ expression: pages
                         font_color: Some(
                             "#FF9900",
                         ),
+                        justify: Justify {
+                            x: Center,
+                            y: Middle,
+                        },
                     },
                     vertex: 1,
                     poly_coords: [],
@@ -867,25 +741,8 @@ expression: pages
                             ),
                             group_geometry: None,
                         },
-                        style_attributes: [
-                            "html",
-                            "rounded",
-                            "fillColor",
-                            "strokeColor",
-                            "opacity",
-                            "whiteSpace",
-                            "fontColor",
-                            "fontSize",
-                        ],
                         page: None,
-                        base_style: None,
-                        style_properties: {
-                            "whiteSpace": "wrap",
-                            "fillColor": "none",
-                            "strokeColor": "none",
-                            "fontColor": "#FF9900",
-                            "fontSize": "10",
-                        },
+                        unsupported_style_properties: {},
                     },
                     geometry: Geometry {
                         bounding_box: BoundingBox {
@@ -918,6 +775,7 @@ expression: pages
                     ),
                     stroke_width: None,
                     opacity: None,
+                    fill_style: None,
                     text_format: TextFormat {
                         font_size: Some(
                             10.0,
@@ -925,6 +783,10 @@ expression: pages
                         font_color: Some(
                             "#FF9900",
                         ),
+                        justify: Justify {
+                            x: Center,
+                            y: Middle,
+                        },
                     },
                     vertex: 1,
                     poly_coords: [],
@@ -947,25 +809,8 @@ expression: pages
                             ),
                             group_geometry: None,
                         },
-                        style_attributes: [
-                            "html",
-                            "rounded",
-                            "fillColor",
-                            "strokeColor",
-                            "opacity",
-                            "whiteSpace",
-                            "fontColor",
-                            "fontSize",
-                        ],
                         page: None,
-                        base_style: None,
-                        style_properties: {
-                            "whiteSpace": "wrap",
-                            "fillColor": "none",
-                            "strokeColor": "none",
-                            "fontColor": "#FF9900",
-                            "fontSize": "10",
-                        },
+                        unsupported_style_properties: {},
                     },
                     geometry: Geometry {
                         bounding_box: BoundingBox {
@@ -998,6 +843,7 @@ expression: pages
                     ),
                     stroke_width: None,
                     opacity: None,
+                    fill_style: None,
                     text_format: TextFormat {
                         font_size: Some(
                             10.0,
@@ -1005,6 +851,10 @@ expression: pages
                         font_color: Some(
                             "#FF9900",
                         ),
+                        justify: Justify {
+                            x: Center,
+                            y: Middle,
+                        },
                     },
                     vertex: 1,
                     poly_coords: [],
@@ -1027,25 +877,8 @@ expression: pages
                             ),
                             group_geometry: None,
                         },
-                        style_attributes: [
-                            "html",
-                            "rounded",
-                            "fillColor",
-                            "strokeColor",
-                            "opacity",
-                            "whiteSpace",
-                            "fontColor",
-                            "fontSize",
-                        ],
                         page: None,
-                        base_style: None,
-                        style_properties: {
-                            "whiteSpace": "wrap",
-                            "fillColor": "none",
-                            "strokeColor": "none",
-                            "fontColor": "#FF9900",
-                            "fontSize": "10",
-                        },
+                        unsupported_style_properties: {},
                     },
                     geometry: Geometry {
                         bounding_box: BoundingBox {
@@ -1078,6 +911,7 @@ expression: pages
                     ),
                     stroke_width: None,
                     opacity: None,
+                    fill_style: None,
                     text_format: TextFormat {
                         font_size: Some(
                             10.0,
@@ -1085,6 +919,10 @@ expression: pages
                         font_color: Some(
                             "#FF9900",
                         ),
+                        justify: Justify {
+                            x: Center,
+                            y: Middle,
+                        },
                     },
                     vertex: 1,
                     poly_coords: [],
@@ -1107,25 +945,8 @@ expression: pages
                             ),
                             group_geometry: None,
                         },
-                        style_attributes: [
-                            "html",
-                            "rounded",
-                            "fillColor",
-                            "strokeColor",
-                            "opacity",
-                            "whiteSpace",
-                            "fontColor",
-                            "fontSize",
-                        ],
                         page: None,
-                        base_style: None,
-                        style_properties: {
-                            "whiteSpace": "wrap",
-                            "fillColor": "none",
-                            "strokeColor": "none",
-                            "fontColor": "#FF9900",
-                            "fontSize": "10",
-                        },
+                        unsupported_style_properties: {},
                     },
                     geometry: Geometry {
                         bounding_box: BoundingBox {
@@ -1158,6 +979,7 @@ expression: pages
                     ),
                     stroke_width: None,
                     opacity: None,
+                    fill_style: None,
                     text_format: TextFormat {
                         font_size: Some(
                             10.0,
@@ -1165,6 +987,10 @@ expression: pages
                         font_color: Some(
                             "#FF9900",
                         ),
+                        justify: Justify {
+                            x: Center,
+                            y: Middle,
+                        },
                     },
                     vertex: 1,
                     poly_coords: [],
@@ -1187,23 +1013,8 @@ expression: pages
                             ),
                             group_geometry: None,
                         },
-                        style_attributes: [
-                            "html",
-                            "rounded",
-                            "fillColor",
-                            "strokeColor",
-                            "opacity",
-                            "whiteSpace",
-                            "strokeWidth",
-                        ],
                         page: None,
-                        base_style: None,
-                        style_properties: {
-                            "whiteSpace": "wrap",
-                            "fillColor": "#FF0000",
-                            "strokeColor": "none",
-                            "strokeWidth": "2",
-                        },
+                        unsupported_style_properties: {},
                     },
                     geometry: Geometry {
                         bounding_box: BoundingBox {
@@ -1238,9 +1049,14 @@ expression: pages
                         2.0,
                     ),
                     opacity: None,
+                    fill_style: None,
                     text_format: TextFormat {
                         font_size: None,
                         font_color: None,
+                        justify: Justify {
+                            x: Center,
+                            y: Middle,
+                        },
                     },
                     vertex: 1,
                     poly_coords: [],
@@ -1263,23 +1079,8 @@ expression: pages
                             ),
                             group_geometry: None,
                         },
-                        style_attributes: [
-                            "html",
-                            "rounded",
-                            "fillColor",
-                            "strokeColor",
-                            "opacity",
-                            "whiteSpace",
-                            "strokeWidth",
-                        ],
                         page: None,
-                        base_style: None,
-                        style_properties: {
-                            "whiteSpace": "wrap",
-                            "fillColor": "#FF0000",
-                            "strokeColor": "none",
-                            "strokeWidth": "2",
-                        },
+                        unsupported_style_properties: {},
                     },
                     geometry: Geometry {
                         bounding_box: BoundingBox {
@@ -1314,9 +1115,14 @@ expression: pages
                         2.0,
                     ),
                     opacity: None,
+                    fill_style: None,
                     text_format: TextFormat {
                         font_size: None,
                         font_color: None,
+                        justify: Justify {
+                            x: Center,
+                            y: Middle,
+                        },
                     },
                     vertex: 1,
                     poly_coords: [],
