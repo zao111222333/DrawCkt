@@ -1,5 +1,5 @@
 ---
-source: tests/parse_symbols_test.rs
+source: drawckt/tests/parse_symbols_test.rs
 expression: pages
 ---
 {
@@ -26,11 +26,11 @@ expression: pages
                         },
                         style_attributes: [
                             "html",
-                            "whiteSpace",
                             "rounded",
                             "fillColor",
                             "strokeColor",
                             "opacity",
+                            "whiteSpace",
                             "strokeWidth",
                             "fillStyle",
                         ],
@@ -106,11 +106,11 @@ expression: pages
                         },
                         style_attributes: [
                             "html",
-                            "whiteSpace",
                             "rounded",
                             "fillColor",
                             "strokeColor",
                             "opacity",
+                            "whiteSpace",
                             "strokeWidth",
                             "shape",
                         ],
@@ -211,11 +211,11 @@ expression: pages
                         },
                         style_attributes: [
                             "html",
-                            "whiteSpace",
                             "rounded",
                             "fillColor",
                             "strokeColor",
                             "opacity",
+                            "whiteSpace",
                             "strokeWidth",
                             "shape",
                         ],

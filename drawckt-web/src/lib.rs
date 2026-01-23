@@ -1,6 +1,10 @@
-use drawckt::renderer::Renderer;
+use base64::engine::general_purpose;
+use base64::Engine as _;
+use drawckt::renderer::{Renderer, SymbolContexts, SymbolId};
 use drawckt::schematic::{LayerStyles, Schematic};
 use serde::{Deserialize, Serialize};
+use std::borrow::Cow;
+use std::collections::HashMap;
 use std::io::{Read, Write};
 use std::sync::Mutex;
 use wasm_bindgen::prelude::*;
@@ -65,11 +69,11 @@ impl HistoryContent {
         }
     }
 
-    pub fn update(&mut self, content: &str) {
+    pub fn update(&mut self, content: String) {
         // Remove all history after current_idx
         self.hist_content.truncate(self.current_idx + 1);
         // Push new content to history
-        self.hist_content.push(content.to_string());
+        self.hist_content.push(content);
         // Update current_idx
         self.current_idx += 1;
     }
@@ -153,21 +157,30 @@ impl HistoryContent {
         // Collect all files and sort by index
         let mut entries: Vec<(usize, String, bool)> = Vec::new();
         for i in 0..archive.len() {
-            let file = archive.by_index(i)
-                .map_err(|e| JsValue::from_str(&format!("Failed to read file {} from history ZIP: {}", i, e)))?;
+            let file = archive.by_index(i).map_err(|e| {
+                JsValue::from_str(&format!(
+                    "Failed to read file {} from history ZIP: {}",
+                    i, e
+                ))
+            })?;
             let name = file.name().to_string();
-            
+
             // Parse filename to extract index and check if it's current
             if name.starts_with(&format!("{}.", base_name)) && name.ends_with(".drawio") {
                 let without_ext = name.strip_suffix(".drawio").unwrap();
                 let is_current = without_ext.ends_with(".current");
                 let index_str = if is_current {
-                    without_ext.strip_suffix(".current").unwrap()
-                        .strip_prefix(&format!("{}.", base_name)).unwrap()
+                    without_ext
+                        .strip_suffix(".current")
+                        .unwrap()
+                        .strip_prefix(&format!("{}.", base_name))
+                        .unwrap()
                 } else {
-                    without_ext.strip_prefix(&format!("{}.", base_name)).unwrap()
+                    without_ext
+                        .strip_prefix(&format!("{}.", base_name))
+                        .unwrap()
                 };
-                
+
                 if let Ok(file_idx) = index_str.parse::<usize>() {
                     entries.push((file_idx, name, is_current));
                 }
@@ -179,14 +192,16 @@ impl HistoryContent {
 
         // Read files in order
         for (file_idx, name, is_current) in entries {
-            let mut file = archive.by_name(&name)
-                .map_err(|e| JsValue::from_str(&format!("Failed to read {} from history ZIP: {}", name, e)))?;
+            let mut file = archive.by_name(&name).map_err(|e| {
+                JsValue::from_str(&format!("Failed to read {} from history ZIP: {}", name, e))
+            })?;
             let mut content = String::new();
-            file.read_to_string(&mut content)
-                .map_err(|e| JsValue::from_str(&format!("Failed to read content from {}: {}", name, e)))?;
-            
+            file.read_to_string(&mut content).map_err(|e| {
+                JsValue::from_str(&format!("Failed to read content from {}: {}", name, e))
+            })?;
+
             hist_content.push(content);
-            
+
             // Track current index (0-based, so file_idx - 1)
             if is_current {
                 current_idx = file_idx - 1;
@@ -233,6 +248,28 @@ impl AppState {
         let mut state = APP_STATE.lock().unwrap();
         *state = Some(new_state);
     }
+
+    fn symbol_contents<'a>(&'a self) -> Result<SymbolContexts<'a>, JsValue> {
+        Ok(SymbolContexts(
+            self.symbols
+                .iter()
+                .map(|symbol_data| {
+                    let symbol_id = SymbolId {
+                        lib: symbol_data.lib.as_str().into(),
+                        cell: symbol_data.cell.as_str().into(),
+                    };
+                    Ok((
+                        symbol_id,
+                        symbol_data
+                            .history
+                            .get_current()
+                            .map(|content| content.as_str().into())
+                            .ok_or_else(|| JsValue::from_str("Symbol content not available"))?,
+                    ))
+                })
+                .collect::<Result<_, JsValue>>()?,
+        ))
+    }
 }
 
 // Main API functions
@@ -252,7 +289,6 @@ pub fn process_schematic_json_with_filename(
         .map_err(|e| JsValue::from_str(&format!("Failed to parse JSON: {}", e)))?;
 
     let mut state = AppState::get_state();
-    state.schematic = Some(schematic.clone());
 
     // Extract filename without extension
     if let Some(ref fname) = filename {
@@ -268,28 +304,11 @@ pub fn process_schematic_json_with_filename(
 
     // Render symbols
     log::info!("Rendering symbols");
-    let renderer = Renderer::new(schematic.clone()).with_layer_styles(state.layer_styles.clone());
+    let renderer = Renderer::new(&schematic, &state.layer_styles);
 
     let symbol_contexts = renderer
         .render_symbols_file()
         .map_err(|e| JsValue::from_str(&format!("Failed to render symbols: {}", e)))?;
-
-    // Convert SymbolContexts to serializable format
-    let mut symbols_data = Vec::new();
-    for (symbol_id, content) in symbol_contexts.iter() {
-        // Skip invalid symbols (empty lib or cell)
-        if symbol_id.lib.is_empty() || symbol_id.cell.is_empty() {
-            log::warn!("Skipping symbol with empty lib or cell: {:?}", symbol_id);
-            continue;
-        }
-        symbols_data.push(SymbolData {
-            lib: symbol_id.lib.clone(),
-            cell: symbol_id.cell.clone(),
-            history: HistoryContent::new(content.clone()),
-        });
-    }
-
-    state.symbols = symbols_data.clone();
 
     // Render schematic
     log::info!("Rendering schematic");
@@ -297,9 +316,28 @@ pub fn process_schematic_json_with_filename(
         .render_schematic_file(&symbol_contexts)
         .map_err(|e| JsValue::from_str(&format!("Failed to render schematic: {}", e)))?;
 
-    state.schematic_content = Some(HistoryContent::new(schematic_content.clone()));
+    // Convert SymbolContexts to serializable format
+    state.symbols = symbol_contexts
+        .0
+        .into_iter()
+        .filter_map(|(symbol_id, content)| {
+            // Skip invalid symbols (empty lib or cell)
+            if symbol_id.lib.is_empty() || symbol_id.cell.is_empty() {
+                log::warn!("Skipping symbol with empty lib or cell: {:?}", symbol_id);
+                None
+            } else {
+                Some(SymbolData {
+                    lib: symbol_id.lib.into_owned(),
+                    cell: symbol_id.cell.into_owned(),
+                    history: HistoryContent::new(content.into_owned()),
+                })
+            }
+        })
+        .collect();
+    state.schematic = Some(schematic);
+    state.schematic_content = Some(HistoryContent::new(schematic_content));
 
-    let symbol_count = symbols_data.len();
+    let symbol_count = state.symbols.len();
     AppState::set_state(state);
 
     let result = serde_wasm_bindgen::to_value(&serde_json::json!({
@@ -318,16 +356,12 @@ pub fn process_schematic_zip(base64_zip: &str) -> Result<JsValue, JsValue> {
     process_schematic_zip_with_filename(base64_zip, None)
 }
 
-#[wasm_bindgen]
-pub fn process_schematic_zip_with_filename(
+/// Extract ZIP archive and return file contents
+fn extract_zip_contents(
     base64_zip: &str,
-    filename: Option<String>,
-) -> Result<JsValue, JsValue> {
+) -> Result<(HashMap<String, Vec<u8>>, Option<String>), JsValue> {
     log::info!("Processing schematic ZIP");
-
     // Decode base64
-    use base64::engine::general_purpose;
-    use base64::Engine;
     let zip_data = general_purpose::STANDARD
         .decode(base64_zip)
         .map_err(|e| JsValue::from_str(&format!("Failed to decode base64 ZIP: {}", e)))?;
@@ -337,25 +371,107 @@ pub fn process_schematic_zip_with_filename(
     let mut archive = ZipArchive::new(cursor)
         .map_err(|e| JsValue::from_str(&format!("Failed to open ZIP archive: {}", e)))?;
 
-    let mut state = AppState::new();
-
     // Read all files into memory first to avoid multiple borrows
-    use std::collections::HashMap;
-    let mut file_contents: HashMap<String, Vec<u8>> = HashMap::new();
-    for i in 0..archive.len() {
-        let mut file = archive
-            .by_index(i)
-            .map_err(|e| JsValue::from_str(&format!("Failed to read file {} from ZIP: {}", i, e)))?;
-        let name = file.name().to_string();
-        let mut content = Vec::new();
-        file.read_to_end(&mut content)
-            .map_err(|e| JsValue::from_str(&format!("Failed to read content from {}: {}", name, e)))?;
-        file_contents.insert(name, content);
+    let file_contents: HashMap<String, Vec<u8>> = (0..archive.len())
+        .into_iter()
+        .map(|i| {
+            let mut file = archive.by_index(i).map_err(|e| {
+                JsValue::from_str(&format!("Failed to read file {} from ZIP: {}", i, e))
+            })?;
+            let name = file.name().to_string();
+            let mut content = Vec::new();
+            file.read_to_end(&mut content).map_err(|e| {
+                JsValue::from_str(&format!("Failed to read content from {}: {}", name, e))
+            })?;
+            Ok((name, content))
+        })
+        .collect::<Result<HashMap<String, Vec<u8>>, JsValue>>()?;
+    let base_path = detect_base_path(&file_contents);
+    log::info!(
+        "Detected base path: '{}'",
+        if let Some(path) = &base_path {
+            path.as_str()
+        } else {
+            "root"
+        }
+    );
+    Ok((file_contents, base_path))
+}
+
+/// Detect the base path prefix for files in the ZIP
+/// Returns the prefix (e.g., "folder/" or "") based on the ZIP structure
+/// Supports two formats:
+/// 1. Files directly in root: layers.json, schematic.json, ...
+/// 2. Files in a subfolder: folder/layers.json, folder/schematic.json, ...
+fn detect_base_path(file_contents: &std::collections::HashMap<String, Vec<u8>>) -> Option<String> {
+    // Check if files are directly in root
+    let root_files = [
+        "layers.json",
+        "schematic.json",
+        "schematic.hist.zip",
+        "schematic.drawio",
+    ];
+    for root_file in &root_files {
+        if file_contents.contains_key(*root_file) {
+            return None; // Files are in root
+        }
     }
 
+    // Check if files are in a subfolder
+    // Find the first directory that contains one of our target files
+    for name in file_contents.keys() {
+        // Skip directories and files in symbols/ folder
+        if name.ends_with('/') || name.starts_with("symbols/") {
+            continue;
+        }
+
+        // Extract the first directory component
+        if let Some(first_slash) = name.find('/') {
+            let potential_base = &name[..first_slash + 1];
+            // Check if this directory contains our target files
+            for root_file in &root_files {
+                let path_in_dir = format!("{}{}", potential_base, root_file);
+                if file_contents.contains_key(&path_in_dir) {
+                    return Some(potential_base.to_string());
+                }
+            }
+        }
+    }
+
+    // Default: assume files are in root
+    None
+}
+
+/// Find a file in the ZIP using the base path prefix
+fn find_file(
+    file_contents: &mut std::collections::HashMap<String, Vec<u8>>,
+    base_path: &Option<String>,
+    filename: &str,
+) -> Option<Vec<u8>> {
+    // Try with base path first
+    let path_with_base = if let Some(base_path) = base_path {
+        Cow::Owned(format!("{}{}", base_path, filename))
+    } else {
+        Cow::Borrowed(filename)
+    };
+    if let Some(content) = file_contents.remove(path_with_base.as_ref()) {
+        return Some(content);
+    }
+    // Fallback: try without base path (for root files)
+    file_contents.remove(filename)
+}
+
+#[wasm_bindgen]
+pub fn process_schematic_zip_with_filename(
+    base64_zip: &str,
+    filename: Option<String>,
+) -> Result<JsValue, JsValue> {
+    let (mut file_contents, base_path) = extract_zip_contents(base64_zip)?;
+    let mut state = AppState::new();
+
     // Read layers.json if present
-    if let Some(layers_data) = file_contents.get("layers.json") {
-        let layers_json = String::from_utf8(layers_data.clone())
+    if let Some(layers_data) = find_file(&mut file_contents, &base_path, "layers.json") {
+        let layers_json = String::from_utf8(layers_data)
             .map_err(|e| JsValue::from_str(&format!("Failed to decode layers.json: {}", e)))?;
         state.layer_styles = serde_json::from_str(&layers_json)
             .map_err(|e| JsValue::from_str(&format!("Failed to parse layers.json: {}", e)))?;
@@ -363,14 +479,12 @@ pub fn process_schematic_zip_with_filename(
     }
 
     // Read schematic.json
-    let schematic_data = file_contents
-        .get("schematic.json")
+    let schematic_data = find_file(&mut file_contents, &base_path, "schematic.json")
         .ok_or_else(|| JsValue::from_str("Failed to find schematic.json in ZIP"))?;
-    let schematic_json = String::from_utf8(schematic_data.clone())
+    let schematic_json = String::from_utf8(schematic_data)
         .map_err(|e| JsValue::from_str(&format!("Failed to decode schematic.json: {}", e)))?;
     let schematic: Schematic = serde_json::from_str(&schematic_json)
         .map_err(|e| JsValue::from_str(&format!("Failed to parse schematic.json: {}", e)))?;
-    state.schematic = Some(schematic.clone());
 
     // Extract filename
     if let Some(ref fname) = filename {
@@ -388,68 +502,57 @@ pub fn process_schematic_zip_with_filename(
     }
 
     // Read schematic.hist.zip if present
-    if let Some(hist_zip_data) = file_contents.get("schematic.hist.zip") {
-        state.schematic_content = Some(HistoryContent::from_hist_zip(hist_zip_data, "schematic")?);
+    if let Some(hist_zip_data) = find_file(&mut file_contents, &base_path, "schematic.hist.zip") {
+        state.schematic_content = Some(HistoryContent::from_hist_zip(&hist_zip_data, "schematic")?);
         log::info!("Restored schematic history from ZIP");
-    } else if let Some(drawio_content) = file_contents.get("schematic.drawio") {
+    } else if let Some(drawio_content) =
+        find_file(&mut file_contents, &base_path, "schematic.drawio")
+    {
         // Fallback: read schematic.drawio if hist.zip is not available
-        let drawio_str = String::from_utf8(drawio_content.clone())
+        let drawio_str = String::from_utf8(drawio_content)
             .map_err(|e| JsValue::from_str(&format!("Failed to decode schematic.drawio: {}", e)))?;
         state.schematic_content = Some(HistoryContent::new(drawio_str));
         log::info!("Restored schematic from schematic.drawio (no history)");
     }
 
-    // Collect all symbol paths
-    let mut symbol_paths: Vec<(String, String)> = Vec::new(); // (lib, cell)
-    for name in file_contents.keys() {
-        // Check if it's a symbol drawio file (not hist.zip)
-        if name.starts_with("symbols/") && name.ends_with(".drawio") && !name.ends_with(".hist.zip") {
-            let path = name.strip_prefix("symbols/").unwrap();
-            let path = path.strip_suffix(".drawio").unwrap();
-            let parts: Vec<&str> = path.split('/').collect();
-            if parts.len() == 2 {
-                symbol_paths.push((parts[0].to_string(), parts[1].to_string()));
-            }
-        }
-    }
-
-    // Process each symbol
-    let mut symbols_data = Vec::new();
-    for (lib, cell) in symbol_paths {
-        // Read symbol drawio file
-        let symbol_path = format!("symbols/{}/{}.drawio", lib, cell);
-        let symbol_content = file_contents
-            .get(&symbol_path)
-            .ok_or_else(|| JsValue::from_str(&format!("Failed to find {} in ZIP", symbol_path)))?;
-        let symbol_content_str = String::from_utf8(symbol_content.clone())
-            .map_err(|e| JsValue::from_str(&format!("Failed to decode {}: {}", symbol_path, e)))?;
-
-        // Read symbol history zip if present
-        let hist_zip_path = format!("symbols/{}/{}.hist.zip", lib, cell);
-        let history = if let Some(hist_zip_data) = file_contents.get(&hist_zip_path) {
-            HistoryContent::from_hist_zip(hist_zip_data, &cell)?
-        } else {
-            // Fallback: use drawio content as initial history
-            HistoryContent::new(symbol_content_str.clone())
-        };
-
-        symbols_data.push(SymbolData {
-            lib: lib.clone(),
-            cell: cell.clone(),
-            history,
-        });
-    }
-
-    state.symbols = symbols_data.clone();
-    AppState::set_state(state);
+    state.symbols = schematic
+        .symbols
+        .iter()
+        .map(|symbol| {
+            let lib = symbol.lib.clone();
+            let cell = symbol.cell.clone();
+            // Read symbol drawio file
+            // find_file will try base_path + symbols/lib/cell.drawio first, then symbols/lib/cell.drawio
+            let symbol_path = format!("symbols/{}/{}.drawio", lib, cell);
+            let symbol_content = find_file(&mut file_contents, &base_path, &symbol_path)
+                .ok_or_else(|| {
+                    JsValue::from_str(&format!("Failed to find {} in ZIP", symbol_path))
+                })?;
+            let symbol_content_str = String::from_utf8(symbol_content).map_err(|e| {
+                JsValue::from_str(&format!("Failed to decode {}: {}", symbol_path, e))
+            })?;
+            // Read symbol history zip if present
+            let hist_zip_path = format!("symbols/{}/{}.hist.zip", lib, cell);
+            let history = if let Some(hist_zip_data) =
+                find_file(&mut file_contents, &base_path, &hist_zip_path)
+            {
+                HistoryContent::from_hist_zip(&hist_zip_data, &cell)?
+            } else {
+                // Fallback: use drawio content as initial history
+                HistoryContent::new(symbol_content_str)
+            };
+            Ok(SymbolData { lib, cell, history })
+        })
+        .collect::<Result<Vec<SymbolData>, JsValue>>()?;
+    state.schematic = Some(schematic);
 
     let result = serde_wasm_bindgen::to_value(&serde_json::json!({
         "success": true,
-        "symbol_count": symbols_data.len(),
+        "symbol_count": state.symbols.len(),
         "schematic_restored": true,
     }))
     .map_err(|e| JsValue::from_str(&format!("Serialization error: {}", e)))?;
-
+    AppState::set_state(state);
     log::debug!("Schematic ZIP processing complete");
     Ok(result)
 }
@@ -524,7 +627,7 @@ pub fn update_layer_styles(styles_json: &str) -> Result<JsValue, JsValue> {
     let mut state = AppState::get_state();
 
     // Check if only sch_visible changed (across all layers)
-    let old_styles = state.layer_styles.clone();
+    let old_styles = &state.layer_styles;
     let only_sch_visible_changed = {
         let check_layer =
             |old: &drawckt::schematic::LayerStyle, new: &drawckt::schematic::LayerStyle| -> bool {
@@ -551,41 +654,22 @@ pub fn update_layer_styles(styles_json: &str) -> Result<JsValue, JsValue> {
                 || old_styles.pin.sch_visible != styles.pin.sch_visible)
     };
 
-    state.layer_styles = styles.clone();
+    state.layer_styles = styles;
 
     // If schematic exists, re-render based on what changed
-    if let Some(ref schematic) = state.schematic {
-        let renderer =
-            Renderer::new(schematic.clone()).with_layer_styles(state.layer_styles.clone());
+    if let Some(schematic) = &state.schematic {
+        let renderer = Renderer::new(&schematic, &state.layer_styles);
 
         if only_sch_visible_changed {
             // Only sch_visible changed, skip symbol re-rendering
             log::info!("Only sch_visible changed, re-rendering schematic only");
 
-            // Rebuild symbol_contexts from current state for schematic rendering
-            use drawckt::renderer::{SymbolContexts, SymbolId};
-            let mut symbol_contexts = SymbolContexts::new();
-            for symbol_data in &state.symbols {
-                let symbol_id = SymbolId {
-                    lib: symbol_data.lib.clone(),
-                    cell: symbol_data.cell.clone(),
-                };
-                // Use current content from history
-                if let Some(current_content) = symbol_data.history.get_current() {
-                    symbol_contexts.insert(symbol_id, current_content.clone());
-                }
-            }
-
             let schematic_content = renderer
-                .render_schematic_file(&symbol_contexts)
+                .render_schematic_file(&state.symbol_contents()?)
                 .map_err(|e| JsValue::from_str(&format!("Failed to render schematic: {}", e)))?;
 
             // Update schematic history
-            if let Some(ref mut schematic_history) = state.schematic_content {
-                schematic_history.update(&schematic_content);
-            } else {
-                state.schematic_content = Some(HistoryContent::new(schematic_content));
-            }
+            state.update_schematic_content(schematic_content);
         } else {
             // Other fields changed, re-render symbols and update history
             log::info!("Re-rendering with updated styles");
@@ -595,41 +679,23 @@ pub fn update_layer_styles(styles_json: &str) -> Result<JsValue, JsValue> {
                 .map_err(|e| JsValue::from_str(&format!("Failed to render symbols: {}", e)))?;
 
             // Update each symbol's content using the same history management logic as edit
-            for (symbol_id, new_content) in symbol_contexts.iter() {
+            for (symbol_id, new_content) in symbol_contexts.0 {
                 // Find the corresponding symbol in state
                 for symbol_data in &mut state.symbols {
                     if symbol_data.lib == symbol_id.lib && symbol_data.cell == symbol_id.cell {
                         // Use the same history management logic as update_symbol_content
-                        update_symbol_content_internal(symbol_data, new_content);
+                        symbol_data.history.update(new_content.into_owned());
                         break;
                     }
                 }
             }
 
-            // Rebuild symbol_contexts from updated state for schematic rendering
-            use drawckt::renderer::{SymbolContexts, SymbolId};
-            let mut updated_symbol_contexts = SymbolContexts::new();
-            for symbol_data in &state.symbols {
-                let symbol_id = SymbolId {
-                    lib: symbol_data.lib.clone(),
-                    cell: symbol_data.cell.clone(),
-                };
-                // Use current content from history
-                if let Some(current_content) = symbol_data.history.get_current() {
-                    updated_symbol_contexts.insert(symbol_id, current_content.clone());
-                }
-            }
-
             let schematic_content = renderer
-                .render_schematic_file(&updated_symbol_contexts)
+                .render_schematic_file(&state.symbol_contents()?)
                 .map_err(|e| JsValue::from_str(&format!("Failed to render schematic: {}", e)))?;
 
             // Update schematic history
-            if let Some(ref mut schematic_history) = state.schematic_content {
-                schematic_history.update(&schematic_content);
-            } else {
-                state.schematic_content = Some(HistoryContent::new(schematic_content));
-            }
+            state.update_schematic_content(schematic_content);
         }
     }
 
@@ -659,13 +725,8 @@ pub fn get_default_layer_styles() -> Result<JsValue, JsValue> {
         .map_err(|e| JsValue::from_str(&format!("Serialization error: {}", e)))
 }
 
-// Internal helper function to update symbol content with history management
-fn update_symbol_content_internal(symbol: &mut SymbolData, content: &str) {
-    symbol.history.update(content);
-}
-
 #[wasm_bindgen]
-pub fn update_symbol_content(lib: &str, cell: &str, content: &str) -> Result<JsValue, JsValue> {
+pub fn update_symbol_content(lib: &str, cell: &str, content: String) -> Result<JsValue, JsValue> {
     log::info!("Updating symbol content: {}/{}", lib, cell);
 
     let mut state = AppState::get_state();
@@ -674,7 +735,7 @@ pub fn update_symbol_content(lib: &str, cell: &str, content: &str) -> Result<JsV
     let mut found = false;
     for symbol in &mut state.symbols {
         if symbol.lib == lib && symbol.cell == cell {
-            update_symbol_content_internal(symbol, content);
+            symbol.history.update(content);
             found = true;
             break;
         }
@@ -688,36 +749,18 @@ pub fn update_symbol_content(lib: &str, cell: &str, content: &str) -> Result<JsV
     }
 
     // Re-render only the updated symbol and schematic
-    if let Some(ref schematic) = state.schematic {
+    if let Some(schematic) = &state.schematic {
         log::info!("Re-rendering symbol and schematic with updated content");
-        let renderer =
-            Renderer::new(schematic.clone()).with_layer_styles(state.layer_styles.clone());
+        let renderer = Renderer::new(&schematic, &state.layer_styles);
 
         // Rebuild symbol_contexts from updated state
-        use drawckt::renderer::{SymbolContexts, SymbolId};
-        let mut symbol_contexts = SymbolContexts::new();
-        for symbol_data in &state.symbols {
-            let symbol_id = SymbolId {
-                lib: symbol_data.lib.clone(),
-                cell: symbol_data.cell.clone(),
-            };
-            // Use current content from history
-            if let Some(current_content) = symbol_data.history.get_current() {
-                symbol_contexts.insert(symbol_id, current_content.clone());
-            }
-        }
-
         // Re-render schematic with updated symbols
         let schematic_content = renderer
-            .render_schematic_file(&symbol_contexts)
+            .render_schematic_file(&state.symbol_contents()?)
             .map_err(|e| JsValue::from_str(&format!("Failed to render schematic: {}", e)))?;
 
         // Update schematic history
-        if let Some(ref mut schematic_history) = state.schematic_content {
-            schematic_history.update(&schematic_content);
-        } else {
-            state.schematic_content = Some(HistoryContent::new(schematic_content));
-        }
+        state.update_schematic_content(schematic_content);
     }
 
     AppState::set_state(state);
@@ -764,31 +807,14 @@ pub fn undo_symbol(lib: &str, cell: &str) -> Result<JsValue, JsValue> {
     // Re-render symbol and schematic
     if let Some(ref schematic) = state.schematic {
         log::info!("Re-rendering symbol and schematic after undo");
-        let renderer =
-            Renderer::new(schematic.clone()).with_layer_styles(state.layer_styles.clone());
-
-        use drawckt::renderer::{SymbolContexts, SymbolId};
-        let mut symbol_contexts = SymbolContexts::new();
-        for symbol_data in &state.symbols {
-            let symbol_id = SymbolId {
-                lib: symbol_data.lib.clone(),
-                cell: symbol_data.cell.clone(),
-            };
-            if let Some(current_content) = symbol_data.history.get_current() {
-                symbol_contexts.insert(symbol_id, current_content.clone());
-            }
-        }
+        let renderer = Renderer::new(&schematic, &state.layer_styles);
 
         let schematic_content = renderer
-            .render_schematic_file(&symbol_contexts)
+            .render_schematic_file(&state.symbol_contents()?)
             .map_err(|e| JsValue::from_str(&format!("Failed to render schematic: {}", e)))?;
 
         // Update schematic history
-        if let Some(ref mut schematic_history) = state.schematic_content {
-            schematic_history.update(&schematic_content);
-        } else {
-            state.schematic_content = Some(HistoryContent::new(schematic_content));
-        }
+        state.update_schematic_content(schematic_content);
     }
 
     AppState::set_state(state);
@@ -835,31 +861,14 @@ pub fn redo_symbol(lib: &str, cell: &str) -> Result<JsValue, JsValue> {
     // Re-render symbol and schematic
     if let Some(ref schematic) = state.schematic {
         log::info!("Re-rendering symbol and schematic after redo");
-        let renderer =
-            Renderer::new(schematic.clone()).with_layer_styles(state.layer_styles.clone());
-
-        use drawckt::renderer::{SymbolContexts, SymbolId};
-        let mut symbol_contexts = SymbolContexts::new();
-        for symbol_data in &state.symbols {
-            let symbol_id = SymbolId {
-                lib: symbol_data.lib.clone(),
-                cell: symbol_data.cell.clone(),
-            };
-            if let Some(current_content) = symbol_data.history.get_current() {
-                symbol_contexts.insert(symbol_id, current_content.clone());
-            }
-        }
+        let renderer = Renderer::new(&schematic, &state.layer_styles);
 
         let schematic_content = renderer
-            .render_schematic_file(&symbol_contexts)
+            .render_schematic_file(&state.symbol_contents()?)
             .map_err(|e| JsValue::from_str(&format!("Failed to render schematic: {}", e)))?;
 
         // Update schematic history
-        if let Some(ref mut schematic_history) = state.schematic_content {
-            schematic_history.update(&schematic_content);
-        } else {
-            state.schematic_content = Some(HistoryContent::new(schematic_content));
-        }
+        state.update_schematic_content(schematic_content);
     }
 
     AppState::set_state(state);
@@ -897,19 +906,23 @@ pub fn get_symbol_info(lib: &str, cell: &str) -> Result<JsValue, JsValue> {
     )))
 }
 
-#[wasm_bindgen]
-pub fn update_schematic_content(content: &str) -> Result<JsValue, JsValue> {
-    log::info!("Updating schematic content");
+impl AppState {
+    fn update_schematic_content(&mut self, content: String) {
+        log::info!("Updating schematic content");
 
-    let mut state = AppState::get_state();
-
-    // Update schematic history
-    if let Some(ref mut schematic_history) = state.schematic_content {
-        schematic_history.update(content);
-    } else {
-        state.schematic_content = Some(HistoryContent::new(content.to_string()));
+        // Update schematic history
+        if let Some(schematic_history) = &mut self.schematic_content {
+            schematic_history.update(content);
+        } else {
+            self.schematic_content = Some(HistoryContent::new(content));
+        }
     }
+}
 
+#[wasm_bindgen]
+pub fn update_schematic_content(content: String) -> Result<JsValue, JsValue> {
+    let mut state = AppState::get_state();
+    state.update_schematic_content(content);
     AppState::set_state(state);
 
     serde_wasm_bindgen::to_value(&serde_json::json!({
@@ -1176,8 +1189,6 @@ pub fn export_all_files() -> Result<JsValue, JsValue> {
     }
 
     // Convert to base64 for JavaScript
-    use base64::engine::general_purpose;
-    use base64::Engine;
     let base64_zip = general_purpose::STANDARD.encode(&zip_data);
 
     serde_wasm_bindgen::to_value(&serde_json::json!({

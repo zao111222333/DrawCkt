@@ -48,10 +48,8 @@ fn main() -> DrawcktResult<()> {
     };
 
     // Create renderer and render symbols
-    let symbol_contexts = Renderer::new(schematic)
-        .with_layer_styles(layer_styles)
-        .render_symbols_file()?;
-
+    let renderer = Renderer::new(&schematic, &layer_styles);
+    let symbol_contexts = renderer.render_symbols_file()?;
     // Write symbols to directory structure
     symbol_contexts.write_to_dir(output_dir)?;
 

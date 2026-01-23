@@ -5,18 +5,19 @@ edition = "2021"
 
 [dependencies]
 drawrs = { path = "../drawrs" }
-serde = { version = "1.0", features = ["derive"] }
-serde_json = "1.0"
-quick-xml = { version = "0.31", features = ["serialize"] }
-uuid = { version = "1.0", features = ["v4"] }
-thiserror = "1.0"
-log = "0.4"
-env_logger = "0.11"
-indexmap = "2.0"
-ordered-float = "4.0"
+serde = { workspace = true }
+serde_json = { workspace = true }
+quick-xml = { workspace = true }
+uuid = { workspace = true }
+thiserror = { workspace = true }
+log = { workspace = true }
+env_logger = { workspace = true }
+indexmap = { workspace = true }
+ordered-float = { workspace = true }
+itertools = { workspace = true }
 
 [dev-dependencies]
-insta = "1.0"
+insta = { workspace = true }
 
 [[bin]]
 name = "render_symbols"

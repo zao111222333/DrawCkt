@@ -1,6 +1,6 @@
+use base64::{engine::general_purpose, Engine as _};
 use std::fs;
 use std::path::{Path, PathBuf};
-use base64::{engine::general_purpose, Engine as _};
 
 fn main() {
     // Tell Cargo to rerun this build script if the demo directory changes
@@ -22,7 +22,11 @@ fn main() {
                                 if let Some(name_str) = file_name.to_str() {
                                     // Get relative path from src/lib.rs to the demo file
                                     // src/lib.rs -> ../demo/filename.json or ../demo/filename.zip
-                                    entries.push((name_str.to_string(), path.clone(), ext == "zip"));
+                                    entries.push((
+                                        name_str.to_string(),
+                                        path.clone(),
+                                        ext == "zip",
+                                    ));
                                 }
                             }
                         }
@@ -42,11 +46,10 @@ fn main() {
     for (name, path, is_zip) in &entries {
         if *is_zip {
             // For ZIP files, read as binary and encode as base64
-            let file_data = fs::read(path).expect(&format!("Failed to read ZIP file: {}", path.display()));
+            let file_data =
+                fs::read(path).expect(&format!("Failed to read ZIP file: {}", path.display()));
             let base64_data = general_purpose::STANDARD.encode(&file_data);
-            map_code.push_str(&format!(
-                "    \"{name}\" => \"{base64_data}\",\n"
-            ));
+            map_code.push_str(&format!("    \"{name}\" => \"{base64_data}\",\n"));
         } else {
             // For JSON files, use include_str!
             map_code.push_str(&format!(

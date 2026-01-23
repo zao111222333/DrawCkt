@@ -2,14 +2,15 @@ use crate::error::{DrawcktError, DrawcktResult};
 use crate::schematic::*;
 use drawrs::xml_base::XMLBase;
 use drawrs::{
-    parse_xml_to_object, BoundingBox, DiagramObject, Edge, File, GroupTransform, Object, Orient,
-    Page,
+    parse_xml_to_object, BoundingBox, DiagramObject, DrawFile, Edge, GroupTransform, Object,
+    Orient, Page,
 };
 use indexmap::IndexMap;
 use log::info;
 use ordered_float::OrderedFloat;
 use quick_xml::events::Event;
 use quick_xml::Reader;
+use std::borrow::Cow;
 use std::collections::HashMap;
 use std::fs;
 use std::path::Path;
@@ -25,40 +26,24 @@ pub struct SymbolPageData {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct SymbolId {
-    pub lib: String,
-    pub cell: String,
+pub struct SymbolId<'a> {
+    pub lib: Cow<'a, str>,
+    pub cell: Cow<'a, str>,
 }
 
-pub struct SymbolContexts(IndexMap<SymbolId, String>);
+pub struct SymbolContexts<'a>(pub IndexMap<SymbolId<'a>, Cow<'a, str>>);
 
-impl SymbolContexts {
-    pub fn new() -> Self {
-        Self(IndexMap::new())
-    }
-
-    pub fn insert(&mut self, id: SymbolId, content: String) {
-        self.0.insert(id, content);
-    }
-
-    pub fn get(&self, id: &SymbolId) -> Option<&String> {
-        self.0.get(id)
-    }
-
-    pub fn iter(&self) -> impl Iterator<Item = (&SymbolId, &String)> {
-        self.0.iter()
-    }
-
+impl<'a> SymbolContexts<'a> {
     /// Write all symbols to directory structure: {dir}/{lib}/{cell}.drawio
     pub fn write_to_dir(&self, dir: impl AsRef<Path>) -> DrawcktResult<()> {
         let output_path = dir.as_ref();
         fs::create_dir_all(output_path)?;
 
-        for (symbol_id, content) in self.iter() {
-            let lib_dir = output_path.join(&symbol_id.lib);
+        for (symbol_id, content) in &self.0 {
+            let lib_dir = output_path.join(symbol_id.lib.as_ref());
             fs::create_dir_all(&lib_dir)?;
             let cell_file = lib_dir.join(format!("{}.drawio", symbol_id.cell));
-            fs::write(&cell_file, content)?;
+            fs::write(&cell_file, content.as_ref())?;
             info!("Symbol rendered to: {:?}", cell_file);
         }
 
@@ -68,7 +53,7 @@ impl SymbolContexts {
     /// Load symbols from directory structure: {dir}/{lib}/{cell}.drawio
     pub fn load_from_dir(dir: impl AsRef<Path>) -> DrawcktResult<Self> {
         let symbols_path = dir.as_ref();
-        let mut symbol_contexts = SymbolContexts::new();
+        let mut symbol_contexts = IndexMap::new();
 
         if symbols_path.exists() && symbols_path.is_dir() {
             for lib_entry in fs::read_dir(symbols_path)? {
@@ -104,45 +89,38 @@ impl SymbolContexts {
 
                             let content = fs::read_to_string(&cell_path)?;
                             let symbol_id = SymbolId {
-                                lib: lib_name.to_string(),
-                                cell: cell_name.to_string(),
+                                lib: lib_name.to_string().into(),
+                                cell: cell_name.to_string().into(),
                             };
-                            symbol_contexts.insert(symbol_id, content);
+                            symbol_contexts.insert(symbol_id, content.to_string().into());
                         }
                     }
                 }
             }
+            Ok(Self(symbol_contexts))
+        } else {
+            Err(DrawcktError::Io(std::io::Error::new(
+                std::io::ErrorKind::NotFound,
+                format!("Symbols directory not found: {:?}", symbols_path),
+            )))
         }
-
-        Ok(symbol_contexts)
     }
 }
 
-impl Default for SymbolContexts {
-    fn default() -> Self {
-        Self::new()
-    }
+pub struct Renderer<'a> {
+    schematic: &'a Schematic,
+    layer_styles: &'a LayerStyles,
 }
 
-pub struct Renderer {
-    schematic: Schematic,
-    layer_styles: LayerStyles,
-}
-
-impl Renderer {
-    pub fn new(schematic: Schematic) -> Self {
+impl<'a> Renderer<'a> {
+    pub fn new(schematic: &'a Schematic, layer_styles: &'a LayerStyles) -> Self {
         Self {
             schematic,
-            layer_styles: LayerStyles::default(),
+            layer_styles,
         }
     }
 
-    pub fn with_layer_styles(mut self, styles: LayerStyles) -> Self {
-        self.layer_styles = styles;
-        self
-    }
-
-    fn get_layer_style(&self, layer: &Layer) -> &LayerStyle {
+    fn get_layer_style(&self, layer: &Layer) -> &'a LayerStyle {
         match layer {
             Layer::Instance => &self.layer_styles.instance,
             Layer::Annotate => &self.layer_styles.annotate,
@@ -451,27 +429,26 @@ impl Renderer {
         }
     }
 
-    pub fn render_symbols_file(&self) -> DrawcktResult<SymbolContexts> {
-        let mut contexts = SymbolContexts::new();
-
-        // Create a separate drawio file for each symbol template
-        let symbols: Vec<_> = self.schematic.symbols.iter().collect();
-        for template in symbols {
-            let mut symbol_file = File::new();
-            let name = format!("{}/{}", template.lib, template.cell);
-            let mut symbol_page = Page::new(Some(name.clone()), false);
-            symbol_page.set_name(name);
-            self.render_symbol(&mut symbol_page, template)?;
-
-            symbol_file.add_page(symbol_page);
-            let symbol_id = SymbolId {
-                lib: template.lib.clone(),
-                cell: template.cell.clone(),
-            };
-            contexts.insert(symbol_id, symbol_file.write());
-        }
-
-        Ok(contexts)
+    pub fn render_symbols_file<'b>(&'b self) -> DrawcktResult<SymbolContexts<'b>> {
+        let contexts = self
+            .schematic
+            .symbols
+            .iter()
+            .map(|template| {
+                let mut symbol_file = DrawFile::new();
+                let name = format!("{}/{}", template.lib, template.cell);
+                let mut symbol_page = Page::new(Some(name.clone()), false);
+                symbol_page.set_name(name);
+                self.render_symbol(&mut symbol_page, template)?;
+                symbol_file.add_page(symbol_page);
+                let symbol_id = SymbolId {
+                    lib: template.lib.as_str().into(),
+                    cell: template.cell.as_str().into(),
+                };
+                Ok((symbol_id, symbol_file.write().into()))
+            })
+            .collect::<Result<_, DrawcktError>>()?;
+        Ok(SymbolContexts(contexts))
     }
 
     // Unified function to render a single Shape
@@ -684,7 +661,7 @@ impl Renderer {
     pub fn render_schematic_file(&self, symbols_content: &SymbolContexts) -> DrawcktResult<String> {
         // Parse symbol contexts to extract pages
         let mut symbol_pages = IndexMap::new();
-        for (symbol_id, content) in symbols_content.iter() {
+        for (symbol_id, content) in &symbols_content.0 {
             let symbol_key = format!("{}/{}", symbol_id.lib, symbol_id.cell);
             let pages = Self::parse_symbols_file(content)?;
             // Each symbol file should have only one page
@@ -701,7 +678,7 @@ impl Renderer {
         let flip_y = |y: f64| -> f64 { -y * SCALE };
 
         // Create schematic.drawio canvas
-        let mut schematic_file = File::new();
+        let mut schematic_file = DrawFile::new();
 
         // Set page name to "{lib}/{cell}"
         let page_name = format!(
@@ -762,7 +739,19 @@ impl Renderer {
         // Render pins in pin layer
         let mut pin_counter = 0;
         for pin in &self.schematic.pins {
-            self.render_shape(&Shape::Label { layer: Layer::Pin, text: pin.name.clone(), xy: [pin.x, pin.y], orient: "".to_string(), height: 0.1, justify: Justify::CenterCenter }, &mut schematic_page, &flip_y, format!("pin-{}", pin_counter))?;
+            self.render_shape(
+                &Shape::Label {
+                    layer: Layer::Pin,
+                    text: pin.name.clone(),
+                    xy: [pin.x, pin.y],
+                    orient: "".to_string(),
+                    height: 0.1,
+                    justify: Justify::CenterCenter,
+                },
+                &mut schematic_page,
+                &flip_y,
+                format!("pin-{}", pin_counter),
+            )?;
             pin_counter += 1;
         }
 

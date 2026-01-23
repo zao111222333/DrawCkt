@@ -1,0 +1,47 @@
+[workspace]
+members = [
+    "drawckt",
+    "drawckt-web",
+    "drawrs",
+]
+resolver = "2"
+
+[workspace.dependencies]
+# Common dependencies used by multiple crates
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+quick-xml = { version = "0.31", features = ["serialize"] }
+uuid = { version = "1.0", features = ["v4"] }
+thiserror = "1.0"
+log = "0.4"
+indexmap = "2.0"
+itertools = { version = "0.14" }
+
+# Dependencies used by drawckt
+env_logger = "0.11"
+ordered-float = "4.0"
+
+# Dependencies used by drawrs
+regex = "1.10"
+chrono = "0.4"
+toml = "0.8"
+once_cell = "1.19"
+dirs = "6.0.0"
+
+# Dependencies used by drawckt-web
+wasm-bindgen = "0.2"
+wasm-bindgen-futures = "0.4"
+web-sys = "0.3"
+js-sys = "0.3"
+serde-wasm-bindgen = "0.6"
+console_error_panic_hook = "0.1"
+console_log = "1.0"
+zip = { version = "0.6", default-features = false, features = ["deflate"] }
+base64 = "0.21"
+phf = { version = "0.11", features = ["macros"] }
+getrandom = { version = "0.2", features = ["js"] }
+
+# Dev dependencies
+insta = "1.0"
+tempfile = "3.8"
+

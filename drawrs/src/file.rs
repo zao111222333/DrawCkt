@@ -2,7 +2,7 @@ use crate::page::Page;
 use crate::xml_base::XMLBase;
 use chrono::Utc;
 
-pub struct File {
+pub struct DrawFile {
     pub base: XMLBase,
     pub pages: Vec<Page>,
     pub host: String,
@@ -10,7 +10,7 @@ pub struct File {
     pub version: String,
 }
 
-impl File {
+impl DrawFile {
     pub fn new() -> Self {
         let mut base = XMLBase::new(None);
         base.xml_class = "mxfile".to_string();
@@ -81,11 +81,5 @@ impl File {
 
     fn xml_close_tag(&self) -> String {
         "</mxfile>".to_string()
-    }
-}
-
-impl Default for File {
-    fn default() -> Self {
-        Self::new()
     }
 }

@@ -1,9 +1,9 @@
-use drawrs::{Edge, File, Object, Page};
+use drawrs::{DrawFile, Edge, Object, Page};
 use std::fs;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Create a new file
-    let mut file = File::new();
+    let mut file = DrawFile::new();
 
     // Create a page
     let mut page = Page::new(None, true);

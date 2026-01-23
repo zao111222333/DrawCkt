@@ -1,9 +1,9 @@
-use drawrs::file::File;
+use drawrs::file::DrawFile;
 use drawrs::page::Page;
 
 #[test]
 fn test_default_values() {
-    let file = File::new();
+    let file = DrawFile::new();
     assert_eq!(file.pages.len(), 0);
     assert_eq!(file.host, "Electron");
     assert_eq!(file.file_type, "device");
@@ -12,14 +12,14 @@ fn test_default_values() {
 
 #[test]
 fn test_with_custom_name() {
-    let file = File::with_name("Test Name.drawio".to_string());
+    let file = DrawFile::with_name("Test Name.drawio".to_string());
     assert_eq!(file.pages.len(), 0);
     assert_eq!(file.host, "Electron");
 }
 
 #[test]
 fn test_add_page_basic() {
-    let mut file = File::new();
+    let mut file = DrawFile::new();
     let page = Page::new(None, true);
     file.add_page(page);
     assert_eq!(file.pages.len(), 1);
@@ -27,7 +27,7 @@ fn test_add_page_basic() {
 
 #[test]
 fn test_add_multiple_pages() {
-    let mut file = File::new();
+    let mut file = DrawFile::new();
     let page1 = Page::new(None, true);
     let page2 = Page::new(None, true);
     let page3 = Page::new(None, true);
@@ -39,7 +39,7 @@ fn test_add_multiple_pages() {
 
 #[test]
 fn test_write_basic() {
-    let mut file = File::new();
+    let mut file = DrawFile::new();
     let page = Page::new(None, true);
     file.add_page(page);
 

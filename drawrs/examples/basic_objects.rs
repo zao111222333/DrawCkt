@@ -1,9 +1,9 @@
-use drawrs::{File, Object, Page};
+use drawrs::{DrawFile, Object, Page};
 use std::fs;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Create a new file
-    let mut file = File::new();
+    let mut file = DrawFile::new();
 
     // Create a page
     let mut page = Page::new(None, true);
@@ -38,6 +38,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let output_file = "Basic Objects.drawio";
     let xml_content = file.write();
     fs::write(output_file, xml_content)?;
-    println!("File written to: {}", output_file);
+    println!("DrawFile written to: {}", output_file);
     Ok(())
 }

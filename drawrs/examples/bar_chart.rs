@@ -1,10 +1,10 @@
-use drawrs::{BarChart, File, Page};
+use drawrs::{BarChart, DrawFile, Page};
 use std::collections::HashMap;
 use std::fs;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Create a new file
-    let mut file = File::new();
+    let mut file = DrawFile::new();
 
     // Create a page
     let mut page = Page::new(None, true);

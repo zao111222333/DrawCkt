@@ -1,9 +1,9 @@
-use drawrs::{File, Object, Page, StandardColor};
+use drawrs::{DrawFile, Object, Page, StandardColor};
 use std::fs;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Create a new file
-    let mut file = File::new();
+    let mut file = DrawFile::new();
 
     // Create a page
     let mut page = Page::new(None, true);
@@ -44,9 +44,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut obj5 = Object::new(None);
     obj5.set_value("Styled".to_string());
     obj5.set_position([300.0, 250.0]);
-    obj5.apply_style_string(
-        "rounded=1;fillColor=#6a00ff;strokeColor=#000000;opacity=80;",
-    );
+    obj5.apply_style_string("rounded=1;fillColor=#6a00ff;strokeColor=#000000;opacity=80;");
     obj5.set_xml_parent(Some("1".to_string()));
     page.add_object(obj5.into());
 

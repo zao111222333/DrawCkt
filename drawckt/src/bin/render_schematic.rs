@@ -59,9 +59,8 @@ fn main() -> DrawcktResult<()> {
     let symbol_contexts = SymbolContexts::load_from_dir(symbols_dir)?;
 
     // Create renderer and render schematic
-    let output_content = Renderer::new(schematic)
-        .with_layer_styles(layer_styles)
-        .render_schematic_file(&symbol_contexts)?;
+    let output_content =
+        Renderer::new(&schematic, &layer_styles).render_schematic_file(&symbol_contexts)?;
 
     // Write output to file
     fs::write(output_file, output_content)?;

@@ -11,7 +11,7 @@ pub mod xml_parser;
 pub use diagram::{DiagramBase, Edge, Geometry, Object};
 pub use diagram_types::{BarChart, BinaryNodeObject, BinaryTreeDiagram, Legend, PieChart};
 pub use error::{DrawrsError, DrawrsResult};
-pub use file::File;
+pub use file::DrawFile;
 pub use page::{DiagramObject, Page};
 pub use transform::{BoundingBox, GroupTransform, Orient};
 pub use utils::{PageSize, StandardColor};
