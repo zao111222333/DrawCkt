@@ -45,7 +45,7 @@ const buildDocsPlugin = () => {
       buildDocs();
       
       // Watch doc directory for changes in development
-      const docDir = resolve(__dirname, 'doc');
+      const docDir = resolve(__dirname, 'static/doc');
       if (existsSync(docDir)) {
         watcher = watch(docDir, { recursive: true }, (eventType, filename) => {
           // Only rebuild on change/rename events, ignore other events
@@ -56,7 +56,7 @@ const buildDocsPlugin = () => {
           }
         });
         
-        console.log('👀 Watching doc/ directory for changes...');
+        console.log('👀 Watching static/doc/ directory for changes...');
       }
       
       // Handle /doc route in development - serve from dist/doc

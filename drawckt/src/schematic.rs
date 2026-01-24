@@ -1,4 +1,5 @@
 use core::fmt;
+use std::borrow::Cow;
 
 use drawrs::diagram::text_format::Justify;
 use serde::{Deserialize, Serialize};
@@ -35,28 +36,48 @@ impl Layer {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct LayerStyle {
-    pub stroke_color: String,
+    pub stroke_color: Cow<'static, str>,
     pub stroke_width: f64,
-    pub text_color: String,
+    pub text_color: Cow<'static, str>,
     pub font_zoom: f64,
-    pub font_family: String,
+    pub font_family: Cow<'static, str>,
     pub sch_visible: bool,
 }
 
-fn default_font_family() -> String {
-    "Times New Roman".to_string()
+impl LayerStyle {
+    pub const fn new(
+        stroke_color: &'static str,
+        stroke_width: f64,
+        text_color: &'static str,
+        font_zoom: f64,
+        font_family: &'static str,
+        sch_visible: bool,
+    ) -> Self {
+        Self {
+            stroke_color: Cow::Borrowed(stroke_color),
+            stroke_width,
+            text_color: Cow::Borrowed(text_color),
+            font_zoom,
+            font_family: Cow::Borrowed(font_family),
+            sch_visible,
+        }
+    }
 }
 
-fn default_font_family_code() -> String {
-    "Verdana".to_string()
+fn default_font_family() -> Cow<'static, str> {
+    "Times New Roman".into()
+}
+
+fn default_font_family_code() -> Cow<'static, str> {
+    "Verdana".into()
 }
 
 impl Default for LayerStyle {
     fn default() -> Self {
         Self {
-            stroke_color: "#000000".to_string(),
+            stroke_color: "#000000".into(),
             stroke_width: 1.0,
-            text_color: "#000000".to_string(),
+            text_color: "#000000".into(),
             font_zoom: 1.0,
             font_family: default_font_family(),
             sch_visible: true,
@@ -89,25 +110,25 @@ impl Default for LayerStyles {
                 Layer::Device,
             ],
             device: LayerStyle {
-                stroke_color: "#00FF00".to_string(),
+                stroke_color: "#00FF00".into(),
                 stroke_width: 2.0,
-                text_color: "#FF0000".to_string(),
+                text_color: "#FF0000".into(),
                 font_zoom: 1.0,
                 font_family: default_font_family_code(),
                 sch_visible: true,
             },
             instance: LayerStyle {
-                stroke_color: "#0000FF".to_string(),
+                stroke_color: "#0000FF".into(),
                 stroke_width: 1.0,
-                text_color: "#0000FF".to_string(),
+                text_color: "#0000FF".into(),
                 font_zoom: 1.0,
                 font_family: default_font_family_code(),
                 sch_visible: false,
             },
             wire: LayerStyle {
-                stroke_color: "#00FFFF".to_string(),
+                stroke_color: "#00FFFF".into(),
                 stroke_width: 2.0,
-                text_color: "#00CCCC".to_string(),
+                text_color: "#00CCCC".into(),
                 font_zoom: 1.0,
                 font_family: default_font_family_code(),
                 sch_visible: true,
@@ -115,25 +136,25 @@ impl Default for LayerStyles {
             wire_show_intersection: true,
             wire_intersection_scale: 1.0,
             annotate: LayerStyle {
-                stroke_color: "#00FF00".to_string(),
+                stroke_color: "#00FF00".into(),
                 stroke_width: 1.0,
-                text_color: "#FF9900".to_string(),
+                text_color: "#FF9900".into(),
                 font_zoom: 1.0,
                 font_family: default_font_family_code(),
                 sch_visible: false,
             },
             pin: LayerStyle {
-                stroke_color: "#FF0000".to_string(),
+                stroke_color: "#FF0000".into(),
                 stroke_width: 2.0,
-                text_color: "#FF0000".to_string(),
+                text_color: "#FF0000".into(),
                 font_zoom: 1.0,
                 font_family: default_font_family_code(),
                 sch_visible: true,
             },
             text: LayerStyle {
-                stroke_color: "#666666".to_string(),
+                stroke_color: "#666666".into(),
                 stroke_width: 1.0,
-                text_color: "#666666".to_string(),
+                text_color: "#666666".into(),
                 font_zoom: 2.0,
                 font_family: default_font_family(),
                 sch_visible: true,

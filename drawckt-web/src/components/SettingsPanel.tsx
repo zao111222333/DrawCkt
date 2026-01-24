@@ -4,12 +4,181 @@ import { LayerStyles, ProcessResult, wasmAPI } from '../wasm';
 import { toAbsolutePath } from '../utils/path';
 import './SettingsPanel.css';
 
+interface StyleSelectorProps {
+  layerStyles: LayerStyles | null;
+  onLayerStylesUpdate: (styles: LayerStyles) => void;
+  onLayerStylesChange?: (styles: LayerStyles) => void; // For style switching without re-rendering
+}
+
+const StyleSelector: React.FC<StyleSelectorProps> = ({
+  layerStyles,
+  onLayerStylesUpdate,
+  onLayerStylesChange,
+}) => {
+  const [styleNames, setStyleNames] = useState<string[]>([]);
+  const [currentStyleName, setCurrentStyleName] = useState<string>('');
+  const [isLoading, setIsLoading] = useState(false);
+  const styleFileInputRef = useRef<HTMLInputElement>(null);
+  const styleSelectRef = useRef<HTMLSelectElement>(null);
+
+  const loadStyleNames = async () => {
+    try {
+      const names = await wasmAPI.getAllStyleNames();
+      setStyleNames(names);
+      // Get current style name from WASM
+      const stylesState = await wasmAPI.getStylesState();
+      if (stylesState && typeof stylesState === 'object' && 'current_name' in stylesState) {
+        setCurrentStyleName((stylesState as any).current_name || '');
+      }
+    } catch (error) {
+      console.error('Failed to load style names:', error);
+    }
+  };
+
+  useEffect(() => {
+    loadStyleNames();
+  }, []);
+
+  // Reload style names and current name when layerStyles changes (e.g., after loading ZIP)
+  useEffect(() => {
+    if (layerStyles) {
+      loadStyleNames();
+    }
+  }, [layerStyles]);
+
+  const handleStyleSelect = async (event: React.ChangeEvent<HTMLSelectElement>) => {
+    const selectedValue = event.target.value;
+    
+    // Special value for upload option
+    if (selectedValue === '__upload__') {
+      styleFileInputRef.current?.click();
+      // Reset select to current style name after a short delay
+      setTimeout(() => {
+        if (styleSelectRef.current) {
+          styleSelectRef.current.value = currentStyleName;
+        }
+      }, 0);
+      return;
+    }
+
+    if (!selectedValue) return;
+
+    setIsLoading(true);
+    try {
+      await wasmAPI.setCurrentStyle(selectedValue);
+      setCurrentStyleName(selectedValue);
+      // Reload layer styles
+      const newStyles = await wasmAPI.getLayerStyles();
+      // Use onLayerStylesChange if available (for style switching without triggering updateLayerStyles)
+      // Otherwise use onLayerStylesUpdate (for normal updates)
+      if (onLayerStylesChange) {
+        onLayerStylesChange(newStyles);
+      } else {
+        onLayerStylesUpdate(newStyles);
+      }
+      // Reload style names in case they changed
+      const names = await wasmAPI.getAllStyleNames();
+      setStyleNames(names);
+    } catch (error) {
+      console.error('Failed to set style:', error);
+      alert(`Failed to set style: ${error}`);
+      // Reset select to current style name on error
+      if (styleSelectRef.current) {
+        styleSelectRef.current.value = currentStyleName;
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleStyleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    if (!file.name.endsWith('.json')) {
+      alert('Please upload a .json file');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = async (e) => {
+      try {
+        const content = e.target?.result as string;
+        const styles: LayerStyles = JSON.parse(content);
+        
+        // Extract name from filename (without .json extension)
+        const name = file.name.replace(/\.json$/, '');
+        
+        setIsLoading(true);
+        try {
+          await wasmAPI.addStyle(name, JSON.stringify(styles));
+          setCurrentStyleName(name);
+          onLayerStylesUpdate(styles);
+          // Reload style names
+          const names = await wasmAPI.getAllStyleNames();
+          setStyleNames(names);
+        } catch (error) {
+          console.error('Failed to add style:', error);
+          alert(`Failed to add style: ${error}`);
+        } finally {
+          setIsLoading(false);
+        }
+      } catch (error) {
+        console.error('Failed to parse style file:', error);
+        alert(`Failed to parse style file: ${error}`);
+      }
+    };
+    reader.onerror = () => {
+      alert('Failed to read file');
+    };
+    reader.readAsText(file);
+    
+    // Reset input
+    if (styleFileInputRef.current) {
+      styleFileInputRef.current.value = '';
+    }
+  };
+
+  return (
+    <>
+      <select
+        ref={styleSelectRef}
+        id="style-select"
+        className="demo-select"
+        value={currentStyleName}
+        onChange={handleStyleSelect}
+        disabled={isLoading}
+        style={{
+          flex: 1,
+        }}
+      >
+        {styleNames.map((name) => (
+          <option key={name} value={name}>
+            {name}
+          </option>
+        ))}
+        <option value="__upload__">
+          📤 Upload Style JSON...
+        </option>
+      </select>
+      <input
+        ref={styleFileInputRef}
+        type="file"
+        accept=".json"
+        onChange={handleStyleFileUpload}
+        style={{ display: 'none' }}
+      />
+    </>
+  );
+};
+
 interface SettingsPanelProps {
   onSchematicUpload: (jsonContent: string, filename?: string) => Promise<ProcessResult>;
   onSchematicZipUpload?: (base64Zip: string, filename?: string) => Promise<ProcessResult>;
   onSchematicClear?: () => void;
   layerStyles: LayerStyles | null;
   onLayerStylesUpdate: (styles: LayerStyles) => void;
+  onLayerStylesChange?: (styles: LayerStyles) => void; // For style switching without re-rendering
   canExport: boolean;
   onExport: () => void;
 }
@@ -20,6 +189,7 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({
   onSchematicClear,
   layerStyles,
   onLayerStylesUpdate,
+  onLayerStylesChange,
   canExport,
   onExport,
 }) => {
@@ -33,7 +203,7 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({
   const [demoList, setDemoList] = useState<Array<{ value: string; label: string }>>([
     { value: '', label: '-- Select a demo case --' },
   ]);
-  const [defaultLayerStyles, setDefaultLayerStyles] = useState<LayerStyles | null>(null);
+  const [fixedCurrentStyle, setFixedCurrentStyle] = useState<LayerStyles | null>(null);
 
   // Load demo list from WASM on mount
   useEffect(() => {
@@ -55,18 +225,26 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({
     loadDemoList();
   }, []);
 
-  // Load default layer styles from WASM on mount
+  // Load fixed current style from WASM on mount and when layerStyles changes
+  const loadFixedCurrentStyle = async () => {
+    try {
+      const fixedStyle = await wasmAPI.getCurrentFixedLayerStyles();
+      setFixedCurrentStyle(fixedStyle);
+    } catch (error) {
+      console.error('Failed to load fixed current style:', error);
+    }
+  };
+
   useEffect(() => {
-    const loadDefaultLayerStyles = async () => {
-      try {
-        const defaultStyles = await wasmAPI.getDefaultLayerStyles();
-        setDefaultLayerStyles(defaultStyles);
-      } catch (error) {
-        console.error('Failed to load default layer styles:', error);
-      }
-    };
-    loadDefaultLayerStyles();
+    loadFixedCurrentStyle();
   }, []);
+
+  // Reload fixed current style when layerStyles changes (e.g., after loading ZIP or switching style)
+  useEffect(() => {
+    if (layerStyles) {
+      loadFixedCurrentStyle();
+    }
+  }, [layerStyles]);
 
   // Restore selectedDemo after key change to preserve selection state
   useEffect(() => {
@@ -390,19 +568,26 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({
               disabled={!canExport}
               title={canExport ? 'Export all files as ZIP' : 'No schematic loaded'}
             >
-              Export
+              Export All
             </button>
           </div>
         </section>
         
         <section className="settings-section">
-          <h3>Layer Style: </h3>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
+            <h3 style={{ margin: 0 }}>Layer Style: </h3>
+            <StyleSelector
+              layerStyles={layerStyles}
+              onLayerStylesUpdate={onLayerStylesUpdate}
+              onLayerStylesChange={onLayerStylesChange}
+            />
+          </div>
           {layerStyles && (
             <LayerStylesEditor
               styles={layerStyles}
               onUpdate={onLayerStylesUpdate}
               wasmStyles={layerStyles}
-              defaultStyles={defaultLayerStyles || undefined}
+              fixedCurrentStyle={fixedCurrentStyle || undefined}
             />
           )}
         </section>

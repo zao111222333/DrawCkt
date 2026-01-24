@@ -337,7 +337,7 @@ function copyNonMarkdownFiles(sourceDir, outputDir) {
 
 // Main function
 function buildDocs() {
-  const docDir = resolve(process.cwd(), 'doc');
+  const docDir = resolve(process.cwd(), 'static/doc');
   const distDir = resolve(process.cwd(), 'dist');
   const outputDir = join(distDir, 'doc');
   

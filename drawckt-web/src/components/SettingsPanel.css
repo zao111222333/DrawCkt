@@ -178,19 +178,16 @@
 .export-btn.enabled {
   opacity: 1;
   cursor: pointer;
-  background-color: #28a745;
-  color: #ffffff;
+  background-color: #ffc107;
+  color: #212529;
 }
 
 .export-btn.enabled:hover {
-  background-color: #ffc107;
-  color: #212529;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  transform: translateY(-1px);
 }
 
 .export-btn.enabled:active {
-  background-color: #ffb300;
-  color: #212529;
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
 }
 

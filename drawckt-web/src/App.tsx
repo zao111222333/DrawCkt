@@ -427,6 +427,23 @@ function App() {
     }
   };
 
+  const handleLayerStylesChange = async (styles: LayerStyles) => {
+    // For style switching: set_current_style already handled the re-rendering in WASM
+    // We just need to update the UI to reflect the changes
+    setLayerStyles(styles);
+    
+    // Re-process schematic if it exists to refresh the UI
+    if (schematicReady) {
+      // Reload symbols list as their content may have changed
+      const allSymbols = await wasmAPI.getAllSymbols();
+      setSymbols(allSymbols);
+      // Force symbols list and schematic view to re-render by updating refresh keys
+      // This will trigger SymbolsList and SchematicView to reload their content and history
+      setSymbolsRefreshKey(prev => prev + 1);
+      setSchematicRefreshKey(prev => prev + 1);
+    }
+  };
+
   return (
     <div className="app">
       <Logger />
@@ -462,6 +479,7 @@ function App() {
                 onSchematicClear={handleSchematicClear}
                 layerStyles={layerStyles}
                 onLayerStylesUpdate={handleLayerStylesUpdate}
+                onLayerStylesChange={handleLayerStylesChange}
                 canExport={schematicReady}
                 onExport={handleExport}
               />

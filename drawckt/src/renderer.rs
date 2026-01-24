@@ -391,7 +391,7 @@ impl<'a> Renderer<'a> {
         match normalized_style {
             1 => {
                 // Not filled, only outlined
-                obj.set_stroke_color(Some(layer_style.stroke_color.clone()));
+                obj.set_stroke_color(Some(layer_style.stroke_color.clone().into_owned()));
                 obj.set_stroke_width(Some(layer_style.stroke_width));
                 obj.set_fill_color(Some("none".to_string()));
             }
@@ -399,32 +399,32 @@ impl<'a> Renderer<'a> {
                 // Filled with color
                 obj.set_stroke_color(Some("none".to_string()));
                 obj.set_stroke_width(Some(layer_style.stroke_width));
-                obj.set_fill_color(Some(layer_style.stroke_color.clone()));
+                obj.set_fill_color(Some(layer_style.stroke_color.clone().into_owned()));
             }
             3 => {
                 // Filled with an X pattern
                 obj.set_stroke_color(Some("none".to_string()));
                 obj.set_stroke_width(Some(layer_style.stroke_width));
-                obj.set_fill_color(Some(layer_style.stroke_color.clone()));
+                obj.set_fill_color(Some(layer_style.stroke_color.clone().into_owned()));
                 obj.set_fill_style(Some(FillStyle::CrossHatch));
             }
             4 => {
                 // Filled with a pattern
                 obj.set_stroke_color(Some("none".to_string()));
                 obj.set_stroke_width(Some(layer_style.stroke_width));
-                obj.set_fill_color(Some(layer_style.stroke_color.clone()));
+                obj.set_fill_color(Some(layer_style.stroke_color.clone().into_owned()));
                 obj.set_fill_style(Some(FillStyle::Hatch));
             }
             5 => {
                 // Filled with pattern and outlined
-                obj.set_stroke_color(Some(layer_style.stroke_color.clone()));
+                obj.set_stroke_color(Some(layer_style.stroke_color.clone().into_owned()));
                 obj.set_stroke_width(Some(layer_style.stroke_width));
-                obj.set_fill_color(Some(layer_style.stroke_color.clone()));
+                obj.set_fill_color(Some(layer_style.stroke_color.clone().into_owned()));
                 obj.set_fill_style(Some(FillStyle::Hatch));
             }
             _ => {
                 // Fallback to not filled
-                obj.set_stroke_color(Some(layer_style.stroke_color.clone()));
+                obj.set_stroke_color(Some(layer_style.stroke_color.clone().into_owned()));
                 obj.set_stroke_width(Some(layer_style.stroke_width));
                 obj.set_fill_color(Some("none".to_string()));
             }
@@ -506,7 +506,7 @@ impl<'a> Renderer<'a> {
 
                     let mut edge = Edge::new(Some(obj_id));
                     edge.set_stroke_width(Some(layer_style.stroke_width));
-                    edge.set_stroke_color(Some(layer_style.stroke_color.clone()));
+                    edge.set_stroke_color(Some(layer_style.stroke_color.clone().into_owned()));
                     edge.set_xml_parent(Some(layer.id()));
                     edge.geometry().set_width(width);
                     edge.geometry().set_height(height);
@@ -569,9 +569,9 @@ impl<'a> Renderer<'a> {
                 obj.set_height(font_height);
                 obj.set_fill_color(Some("none".to_string()));
                 obj.set_stroke_color(Some("none".to_string()));
-                obj.set_font_color(Some(layer_style.text_color.clone()));
+                obj.set_font_color(Some(layer_style.text_color.clone().into_owned()));
                 obj.set_font_size(Some(font_height));
-                obj.set_font_family(Some(layer_style.font_family.clone()));
+                obj.set_font_family(Some(layer_style.font_family.clone().into_owned()));
                 obj.set_xml_parent(Some(layer.id()));
                 obj.set_justify(*justify);
                 obj.apply_style_property("spacing", "0");

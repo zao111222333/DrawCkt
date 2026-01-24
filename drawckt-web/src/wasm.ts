@@ -219,15 +219,14 @@ export const wasmAPI = {
     }
   },
 
-  async getDefaultLayerStyles(): Promise<LayerStyles> {
+  async getCurrentFixedLayerStyles(): Promise<LayerStyles> {
     await initWasm();
     try {
-      // @ts-ignore - get_default_layer_styles is defined in Rust but TypeScript types may not be updated yet
-      const result = (wasm as any).get_default_layer_styles();
-      // serde_wasm_bindgen::to_value returns a JavaScript object
+      // @ts-ignore - get_current_fixed_layer_styles is defined in Rust but TypeScript types may not be updated yet
+      const result = (wasm as any).get_current_fixed_layer_styles();
       return result as unknown as LayerStyles;
     } catch (error) {
-      throw new Error(`Failed to get default layer styles: ${error}`);
+      throw new Error(`Failed to get current fixed layer styles: ${error}`);
     }
   },
 
@@ -420,6 +419,76 @@ export const wasmAPI = {
     } catch (error) {
       console.error('Error in getSchematicInfo:', error);
       throw new Error(`Failed to get schematic info: ${error}`);
+    }
+  },
+
+  async getStylesState(): Promise<any> {
+    await initWasm();
+    try {
+      // @ts-ignore - get_styles_state is defined in Rust but TypeScript types may not be updated yet
+      const result = (wasm as any).get_styles_state();
+      return result;
+    } catch (error) {
+      throw new Error(`Failed to get styles state: ${error}`);
+    }
+  },
+
+  async getAllStyleNames(): Promise<string[]> {
+    await initWasm();
+    try {
+      // @ts-ignore - get_all_style_names is defined in Rust but TypeScript types may not be updated yet
+      const result = (wasm as any).get_all_style_names();
+      if (!Array.isArray(result)) {
+        console.error('getAllStyleNames: result is not an array', result);
+        return [];
+      }
+      return result as unknown as string[];
+    } catch (error) {
+      throw new Error(`Failed to get all style names: ${error}`);
+    }
+  },
+
+  async setCurrentStyle(name: string): Promise<{ success: boolean }> {
+    await initWasm();
+    try {
+      // @ts-ignore - set_current_style is defined in Rust but TypeScript types may not be updated yet
+      const result = (wasm as any).set_current_style(name);
+      return result as unknown as { success: boolean };
+    } catch (error) {
+      throw new Error(`Failed to set current style: ${error}`);
+    }
+  },
+
+  async addStyle(name: string, stylesJson: string): Promise<{ success: boolean }> {
+    await initWasm();
+    try {
+      // @ts-ignore - add_style is defined in Rust but TypeScript types may not be updated yet
+      const result = (wasm as any).add_style(name, stylesJson);
+      return result as unknown as { success: boolean };
+    } catch (error) {
+      throw new Error(`Failed to add style: ${error}`);
+    }
+  },
+
+  async resetCurrentStyle(): Promise<{ success: boolean }> {
+    await initWasm();
+    try {
+      // @ts-ignore - reset_current_style is defined in Rust but TypeScript types may not be updated yet
+      const result = (wasm as any).reset_current_style();
+      return result as unknown as { success: boolean };
+    } catch (error) {
+      throw new Error(`Failed to reset current style: ${error}`);
+    }
+  },
+
+  async fixCurrentStyle(): Promise<{ success: boolean }> {
+    await initWasm();
+    try {
+      // @ts-ignore - fix_current_style is defined in Rust but TypeScript types may not be updated yet
+      const result = (wasm as any).fix_current_style();
+      return result as unknown as { success: boolean };
+    } catch (error) {
+      throw new Error(`Failed to fix current style: ${error}`);
     }
   },
 };

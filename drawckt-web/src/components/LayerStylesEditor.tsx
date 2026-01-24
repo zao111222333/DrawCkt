@@ -6,8 +6,7 @@ interface LayerStylesEditorProps {
   styles: LayerStyles;
   onUpdate: (styles: LayerStyles) => void;
   wasmStyles?: LayerStyles; // Current WASM state
-  defaultStyles?: LayerStyles; // Default LayerStyles
-  onUndo?: () => void; // Callback for undo button
+  fixedCurrentStyle?: LayerStyles; // Fixed (saved) style from WASM
   onReset?: () => void; // Callback for reset button
 }
 
@@ -239,8 +238,7 @@ const LayerStylesEditor: React.FC<LayerStylesEditorProps> = ({
   styles, 
   onUpdate, 
   wasmStyles,
-  defaultStyles,
-  onUndo,
+  fixedCurrentStyle,
   onReset,
 }) => {
   const [localStyles, setLocalStyles] = useState<LayerStyles>(() => deepCopyLayerStyles(styles));
@@ -282,8 +280,17 @@ const LayerStylesEditor: React.FC<LayerStylesEditorProps> = ({
   // This will be recalculated on every render when localStyles or savedStyles change
   const hasChanges = !areStylesEqual(localStyles, savedStyles);
   
-  // Check if WASM current state differs from default (for reset button disable condition)
-  const wasmDiffersFromDefault = wasmStyles && defaultStyles ? !areStylesEqual(wasmStyles, defaultStyles) : true;
+  // Check if WASM current state differs from fixed style (for reset and save button disable condition)
+  const wasmDiffersFromFixed = wasmStyles && fixedCurrentStyle ? !areStylesEqual(wasmStyles, fixedCurrentStyle) : true;
+
+  // Auto-update when styles change (but not on initial mount or external updates)
+  useEffect(() => {
+    if (!isInitialMount.current && hasChanges) {
+      onUpdate(localStyles);
+      setSavedStyles(deepCopyLayerStyles(localStyles));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [localStyles]);
 
   const updateLayer = (layerName: 'instance' | 'device' | 'annotate' | 'pin' | 'wire' | 'text', field: string, value: any) => {
     const newStyles = {
@@ -518,29 +525,75 @@ const LayerStylesEditor: React.FC<LayerStylesEditorProps> = ({
     }
   };
 
-  const handleSave = () => {
-    onUpdate(localStyles);
-    setSavedStyles(deepCopyLayerStyles(localStyles));
-  };
-
-  const handleUndo = () => {
-    if (wasmStyles) {
-      // Reset localStyles to WASM current state (but don't update WASM)
-      setLocalStyles(deepCopyLayerStyles(wasmStyles));
-    } else if (onUndo) {
-      onUndo();
+  const handleSave = async () => {
+    try {
+      const { wasmAPI } = await import('../wasm');
+      await wasmAPI.fixCurrentStyle();
+      // Reload styles from WASM to update fixedCurrentStyle
+      const newStyles = await wasmAPI.getLayerStyles();
+      const newStylesCopy = deepCopyLayerStyles(newStyles);
+      setLocalStyles(newStylesCopy);
+      setSavedStyles(newStylesCopy);
+      onUpdate(newStylesCopy);
+    } catch (error) {
+      console.error('Failed to save style:', error);
+      alert(`Failed to save style: ${error}`);
     }
   };
 
-  const handleReset = () => {
-    if (defaultStyles) {
-      // Reset localStyles to default and update WASM
-      const defaultStylesCopy = deepCopyLayerStyles(defaultStyles);
-      setLocalStyles(defaultStylesCopy);
-      setSavedStyles(defaultStylesCopy);
-      onUpdate(defaultStylesCopy);
+  const handleReset = async () => {
+    if (fixedCurrentStyle) {
+      // Reset current style to fixed style (get_current_fixed_style)
+      try {
+        const { wasmAPI } = await import('../wasm');
+        await wasmAPI.resetCurrentStyle();
+        // Reload styles from WASM
+        const newStyles = await wasmAPI.getLayerStyles();
+        const newStylesCopy = deepCopyLayerStyles(newStyles);
+        setLocalStyles(newStylesCopy);
+        setSavedStyles(newStylesCopy);
+        onUpdate(newStylesCopy);
+      } catch (error) {
+        console.error('Failed to reset style:', error);
+        // Fallback to fixed style
+        const fixedStyleCopy = deepCopyLayerStyles(fixedCurrentStyle);
+        setLocalStyles(fixedStyleCopy);
+        setSavedStyles(fixedStyleCopy);
+        onUpdate(fixedStyleCopy);
+      }
     } else if (onReset) {
       onReset();
+    }
+  };
+
+  const handleExport = async () => {
+    try {
+      const { wasmAPI } = await import('../wasm');
+      const stylesState = await wasmAPI.getStylesState();
+      
+      if (!stylesState || typeof stylesState !== 'object' || !('current_name' in stylesState) || !('current' in stylesState)) {
+        throw new Error('Failed to get styles state from WASM');
+      }
+      
+      const currentName = (stylesState as any).current_name || 'style';
+      const current = (stylesState as any).current;
+      
+      // Convert current to JSON string
+      const jsonContent = JSON.stringify(current, null, 2);
+      
+      // Create a blob and download it
+      const blob = new Blob([jsonContent], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `${currentName}.json`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Failed to export style:', error);
+      alert(`Failed to export style: ${error}`);
     }
   };
 
@@ -740,25 +793,12 @@ const LayerStylesEditor: React.FC<LayerStylesEditorProps> = ({
         );
       })}
       <div style={{ display: 'flex', gap: '8px', justifyContent: 'center'}}>
-        {wasmStyles && (
+        {fixedCurrentStyle && (
           <button 
-            className={`update-btn ${hasChanges ? 'enabled' : 'disabled'}`}
-            onClick={hasChanges ? handleUndo : undefined}
-            disabled={!hasChanges}
-            title={hasChanges ? 'Undo to current WASM state' : 'No changes to undo'}
-            style={{
-              background: '#6c757d',
-            }}
-          >
-            Undo
-          </button>
-        )}
-        {defaultStyles && (
-          <button 
-            className={`update-btn ${wasmDiffersFromDefault ? 'enabled' : 'disabled'}`}
-            onClick={wasmDiffersFromDefault ? handleReset : undefined}
-            disabled={!wasmDiffersFromDefault}
-            title={wasmDiffersFromDefault ? 'Reset to default layer styles and update' : 'WASM state already matches default'}
+            className={`update-btn ${wasmDiffersFromFixed ? 'enabled' : 'disabled'}`}
+            onClick={wasmDiffersFromFixed ? handleReset : undefined}
+            disabled={!wasmDiffersFromFixed}
+            title={wasmDiffersFromFixed ? 'Reset to last saved style and update' : 'WASM state already matches fixed style'}
             style={{
               background: '#F44336',
             }}
@@ -767,15 +807,26 @@ const LayerStylesEditor: React.FC<LayerStylesEditorProps> = ({
           </button>
         )}
         <button 
-          className={`update-btn ${hasChanges ? 'enabled' : 'disabled'}`}
-          onClick={hasChanges ? handleSave : undefined}
-          disabled={!hasChanges}
-          title={hasChanges ? 'Apply layer style changes' : 'No changes to apply'}
+          className={`update-btn ${wasmDiffersFromFixed ? 'enabled' : 'disabled'}`}
+          onClick={wasmDiffersFromFixed ? handleSave : undefined}
+          disabled={!wasmDiffersFromFixed}
+          title={wasmDiffersFromFixed ? 'Save current style' : 'Current style already matches saved style'}
           style={{
             background: '#28a745',
           }}
         >
-          Update
+          Save
+        </button>
+        <button 
+          className="update-btn enabled"
+          onClick={handleExport}
+          title="Export current style as JSON file"
+          style={{
+            background: '#ffc107',
+            color: '#212529',
+          }}
+        >
+          Export
         </button>
       </div>
     </div>
