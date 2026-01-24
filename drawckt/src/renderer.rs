@@ -208,11 +208,11 @@ impl<'a> Renderer<'a> {
     }
 
     // Convert wires to HashMap grouped by net, with each wire as a Shape::Line
-    fn wires_to_shapes_by_net(&self) -> HashMap<String, Vec<&Vec<[f64; 2]>>> {
+    fn wires_to_shapes_by_net(&self) -> HashMap<String, Vec<&Vec<[OrderedFloat<f64>; 2]>>> {
         let mut shapes_by_net = HashMap::new();
         for wire in &self.schematic.wires {
             if wire.points.len() >= 2 {
-                shapes_by_net
+                _ = shapes_by_net
                     .entry(wire.net.clone())
                     .or_insert_with(Vec::new)
                     .push(&wire.points);
@@ -222,17 +222,14 @@ impl<'a> Renderer<'a> {
     }
 
     // Merge lines that share endpoints (same net, same endpoint, only two lines at that point)
-    pub(crate) fn merge_lines(lines: Vec<&Vec<[f64; 2]>>) -> Vec<Vec<[f64; 2]>> {
+    pub(crate) fn merge_lines(
+        lines: Vec<&Vec<[OrderedFloat<f64>; 2]>>,
+    ) -> Vec<Vec<[OrderedFloat<f64>; 2]>> {
         if lines.is_empty() {
             return Vec::new();
         }
 
-        // Helper to compare points using OrderedFloat
-        let point_eq = |p1: &[f64; 2], p2: &[f64; 2]| -> bool {
-            OrderedFloat(p1[0]) == OrderedFloat(p2[0]) && OrderedFloat(p1[1]) == OrderedFloat(p2[1])
-        };
-
-        let mut merged: Vec<Vec<[f64; 2]>> = Vec::new();
+        let mut merged: Vec<Vec<[OrderedFloat<f64>; 2]>> = Vec::new();
         let mut processed = vec![false; lines.len()];
 
         for i in 0..lines.len() {
@@ -269,10 +266,10 @@ impl<'a> Renderer<'a> {
                     let other_end = &other_line[other_line.len() - 1];
 
                     // Check if lines share an endpoint
-                    let share_start_start = point_eq(current_start, other_start);
-                    let share_start_end = point_eq(current_start, other_end);
-                    let share_end_start = point_eq(current_end, other_start);
-                    let share_end_end = point_eq(current_end, other_end);
+                    let share_start_start = current_start == other_start;
+                    let share_start_end = current_start == other_end;
+                    let share_end_start = current_end == other_start;
+                    let share_end_end = current_end == other_end;
 
                     if !share_start_start && !share_start_end && !share_end_start && !share_end_end
                     {
@@ -306,7 +303,7 @@ impl<'a> Renderer<'a> {
                             if !points.is_empty() {
                                 let line_start = &points[0];
                                 let line_end = &points[points.len() - 1];
-                                if point_eq(line_start, shared) || point_eq(line_end, shared) {
+                                if line_start == shared || line_end == shared {
                                     connection_count += 1;
                                 }
                             }
@@ -317,7 +314,7 @@ impl<'a> Renderer<'a> {
                             if !merged_line.is_empty() {
                                 let line_start = &merged_line[0];
                                 let line_end = &merged_line[merged_line.len() - 1];
-                                if point_eq(line_start, shared) || point_eq(line_end, shared) {
+                                if line_start == shared || line_end == shared {
                                     connection_count += 1;
                                 }
                             }
@@ -467,7 +464,7 @@ impl<'a> Renderer<'a> {
                     let layer_style = self.get_layer_style(layer);
 
                     let mut obj = Object::new(Some(obj_id));
-                    obj.set_position([x, y]);
+                    obj.set_position([*x, *y]);
                     obj.set_width(width.abs());
                     obj.set_height(height.abs());
                     self.apply_fill_style(&mut obj, *fill_style, layer_style);
@@ -502,13 +499,15 @@ impl<'a> Renderer<'a> {
                     edge.geometry().set_width(width);
                     edge.geometry().set_height(height);
                     edge.geometry().set_relative(Some(true));
-                    edge.geometry().set_source_point(Some([source_x, source_y]));
-                    edge.geometry().set_target_point(Some([target_x, target_y]));
+                    edge.geometry()
+                        .set_source_point(Some([*source_x, *source_y]));
+                    edge.geometry()
+                        .set_target_point(Some([*target_x, *target_y]));
 
                     for point in &intermediate {
                         let point_x = point[0] * SCALE;
                         let point_y = -point[1] * SCALE;
-                        edge.geometry().add_intermediate_point([point_x, point_y]);
+                        edge.geometry().add_intermediate_point([*point_x, *point_y]);
                     }
 
                     page.add_object(DiagramObject::Edge(edge));
@@ -525,7 +524,7 @@ impl<'a> Renderer<'a> {
                 let layer_style = self.get_layer_style(layer);
                 let mut x = xy[0] * SCALE;
                 let mut y = -xy[1] * SCALE;
-                let font_height = 1.2 * height * SCALE * layer_style.font_zoom;
+                let font_height = 1.2 * height.as_ref() * SCALE * layer_style.font_zoom;
                 let font_width = font_height * text.len() as f64 / 2.0;
                 let mut obj = Object::new(Some(obj_id));
                 {
@@ -557,7 +556,7 @@ impl<'a> Renderer<'a> {
                 }
 
                 obj.set_value(text.clone());
-                obj.set_position([x, y]);
+                obj.set_position([*x, *y]);
                 obj.set_width(font_width);
                 obj.set_height(font_height);
                 obj.set_fill_color(Some("none".to_string()));
@@ -604,14 +603,14 @@ impl<'a> Renderer<'a> {
                     let poly_coords: Vec<[f64; 2]> = points
                         .iter()
                         .map(|p| {
-                            let norm_x = if bbox_width > 0.0 {
-                                (p[0] - min_x) / bbox_width
+                            let norm_x = if *bbox_width > 0.0 {
+                                (p[0].as_ref() - min_x.as_ref()) / bbox_width.as_ref()
                             } else {
                                 0.0
                             };
                             // Flip Y coordinate: norm_y_flipped = 1 - norm_y
-                            let norm_y = if bbox_height > 0.0 {
-                                (p[1] - min_y_local) / bbox_height
+                            let norm_y = if *bbox_height > 0.0 {
+                                (p[1].as_ref() - min_y_local.as_ref()) / bbox_height.as_ref()
                             } else {
                                 0.0
                             };
@@ -623,7 +622,7 @@ impl<'a> Renderer<'a> {
                     let layer_style = self.get_layer_style(layer);
 
                     let mut obj = Object::new(Some(obj_id));
-                    obj.set_position([x, y]);
+                    obj.set_position([*x, *y]);
                     obj.set_width(width.abs());
                     obj.set_height(height.abs());
                     self.apply_fill_style(&mut obj, *fill_style, layer_style);
@@ -647,7 +646,7 @@ impl<'a> Renderer<'a> {
                     let layer_style = self.get_layer_style(layer);
 
                     let mut obj = Object::new(Some(obj_id));
-                    obj.set_position([x, y]);
+                    obj.set_position([*x, *y]);
                     obj.set_width(width.abs());
                     obj.set_height(height.abs());
                     self.apply_fill_style(&mut obj, *fill_style, layer_style);
@@ -663,8 +662,6 @@ impl<'a> Renderer<'a> {
     fn render_symbol(&self, page: &mut Page, template: &Symbol) -> DrawcktResult<()> {
         self.init_layers::<false>(page, &self.layer_styles.layer_order)?;
 
-        // Helper function to flip Y coordinate: y_drawio = (symbol_max_y - y_json) * SCALE
-        // Render each shape in the template using SCALE to convert coordinates and flip Y
         let mut lines_wire = Vec::new();
         let mut lines_instance = Vec::new();
         let mut lines_annotate = Vec::new();
@@ -789,9 +786,12 @@ impl<'a> Renderer<'a> {
                 &Shape::Label {
                     layer: Layer::Pin,
                     text: pin.name.clone(),
-                    xy: [pin.x - 0.175, pin.y],
+                    xy: [
+                        ordered_float::OrderedFloat(pin.x - 0.175),
+                        ordered_float::OrderedFloat(pin.y),
+                    ],
                     orient: "".to_string(),
-                    height: 0.1,
+                    height: ordered_float::OrderedFloat(0.1),
                     justify: Justify {
                         x: JustifyX::Right,
                         y: JustifyY::Middle,

@@ -2,6 +2,8 @@ use core::fmt;
 use std::borrow::Cow;
 
 use drawrs::diagram::text_format::Justify;
+use indexmap::IndexSet;
+use ordered_float::OrderedFloat;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Hash)]
@@ -193,8 +195,7 @@ pub struct Instance {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Wire {
     pub net: String,
-    #[serde(rename = "points")]
-    pub points: Vec<[f64; 2]>,
+    pub points: Vec<[OrderedFloat<f64>; 2]>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -209,7 +210,7 @@ pub struct Pin {
 pub struct Symbol {
     pub lib: String,
     pub cell: String,
-    pub shapes: Vec<Shape>,
+    pub shapes: IndexSet<Shape>,
     pub pins: Vec<TemplatePin>,
 }
 
@@ -220,7 +221,7 @@ impl Symbol {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Hash, PartialEq, Eq)]
 #[serde(tag = "type")]
 pub enum Shape {
     #[serde(rename = "polygon")]
@@ -229,7 +230,7 @@ pub enum Shape {
         layer: Layer,
         #[serde(rename = "fillStyle", default = "default_fill_style")]
         fill_style: u8,
-        points: Vec<[f64; 2]>,
+        points: Vec<[OrderedFloat<f64>; 2]>,
     },
     #[serde(rename = "rect")]
     Rect {
@@ -238,23 +239,23 @@ pub enum Shape {
         #[serde(rename = "fillStyle", default = "default_fill_style")]
         fill_style: u8,
         #[serde(rename = "bBox")]
-        b_box: [[f64; 2]; 2],
+        b_box: [[OrderedFloat<f64>; 2]; 2],
     },
     #[serde(rename = "label")]
     Label {
         #[serde(deserialize_with = "deserialize_layer")]
         layer: Layer,
         text: String,
-        xy: [f64; 2],
+        xy: [OrderedFloat<f64>; 2],
         orient: String,
-        height: f64,
+        height: OrderedFloat<f64>,
         justify: Justify,
     },
     #[serde(rename = "line")]
     Line {
         #[serde(deserialize_with = "deserialize_layer")]
         layer: Layer,
-        points: Vec<[f64; 2]>,
+        points: Vec<[OrderedFloat<f64>; 2]>,
     },
     #[serde(rename = "ellipse")]
     Ellipse {
@@ -263,7 +264,7 @@ pub enum Shape {
         #[serde(rename = "fillStyle", default = "default_fill_style")]
         fill_style: u8,
         #[serde(rename = "bBox")]
-        b_box: [[f64; 2]; 2],
+        b_box: [[OrderedFloat<f64>; 2]; 2],
     },
 }
 
