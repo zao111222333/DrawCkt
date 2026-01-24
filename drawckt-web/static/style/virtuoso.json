@@ -13,7 +13,8 @@
     "text_color": "#e93423",
     "font_zoom": 1.2,
     "font_family": "Verdana",
-    "sch_visible": true
+    "label_sch_visible": true,
+    "shape_sch_visible": true
   },
   "instance": {
     "stroke_color": "#e93423",
@@ -21,7 +22,8 @@
     "text_color": "#e93423",
     "font_zoom": 1,
     "font_family": "Verdana",
-    "sch_visible": false
+    "label_sch_visible": false,
+    "shape_sch_visible": false
   },
   "wire": {
     "stroke_color": "#64bdf9",
@@ -29,7 +31,8 @@
     "text_color": "#64bdf9",
     "font_zoom": 1.2,
     "font_family": "Verdana",
-    "sch_visible": true
+    "label_sch_visible": true,
+    "shape_sch_visible": true
   },
   "wire_show_intersection": true,
   "wire_intersection_scale": 1,
@@ -39,7 +42,8 @@
     "text_color": "#ee8733",
     "font_zoom": 1,
     "font_family": "Verdana",
-    "sch_visible": false
+    "label_sch_visible": false,
+    "shape_sch_visible": false
   },
   "pin": {
     "stroke_color": "#e93423",
@@ -47,7 +51,8 @@
     "text_color": "#e93423",
     "font_zoom": 1.2,
     "font_family": "Verdana",
-    "sch_visible": true
+    "label_sch_visible": true,
+    "shape_sch_visible": true
   },
   "text": {
     "stroke_color": "#666666",
@@ -55,6 +60,7 @@
     "text_color": "#666666",
     "font_zoom": 2,
     "font_family": "Times New Roman",
-    "sch_visible": true
+    "label_sch_visible": true,
+    "shape_sch_visible": true
   }
 }

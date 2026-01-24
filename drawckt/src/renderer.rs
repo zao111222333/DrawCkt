@@ -183,16 +183,30 @@ impl<'a> Renderer<'a> {
                     text = true;
                 }
             }
-            let mut layer_cell = drawrs::xml_base::XMLBase::new(Some(layer.id()));
-            layer_cell.xml_class = "mxCell".to_string();
-            layer_cell.xml_parent = Some("0".to_string());
-            layer_cell.value = Some(layer.to_string());
-            layer_cell.visible = Some(if IS_SCH && !self.get_layer_style(layer).sch_visible {
-                "0".to_string()
-            } else {
-                "1".to_string()
-            });
-            page.add_object(drawrs::DiagramObject::XmlBase(layer_cell));
+            let mut shape_layer_cell = drawrs::xml_base::XMLBase::new(Some(layer.id_shape()));
+            shape_layer_cell.xml_class = "mxCell".to_string();
+            shape_layer_cell.xml_parent = Some("0".to_string());
+            shape_layer_cell.value = Some(format!("{layer}-shape"));
+            shape_layer_cell.visible = Some(
+                if IS_SCH && !self.get_layer_style(layer).shape_sch_visible {
+                    "0".to_string()
+                } else {
+                    "1".to_string()
+                },
+            );
+            page.add_object(drawrs::DiagramObject::XmlBase(shape_layer_cell));
+            let mut label_layer_cell = drawrs::xml_base::XMLBase::new(Some(layer.id_label()));
+            label_layer_cell.xml_class = "mxCell".to_string();
+            label_layer_cell.xml_parent = Some("0".to_string());
+            label_layer_cell.value = Some(format!("{layer}-label"));
+            label_layer_cell.visible = Some(
+                if IS_SCH && !self.get_layer_style(layer).label_sch_visible {
+                    "0".to_string()
+                } else {
+                    "1".to_string()
+                },
+            );
+            page.add_object(drawrs::DiagramObject::XmlBase(label_layer_cell));
         }
         Ok(())
     }
@@ -468,7 +482,7 @@ impl<'a> Renderer<'a> {
                     obj.set_width(width.abs());
                     obj.set_height(height.abs());
                     self.apply_fill_style(&mut obj, *fill_style, layer_style);
-                    obj.set_xml_parent(Some(layer.id()));
+                    obj.set_xml_parent(Some(layer.id_shape()));
                     page.add_object(DiagramObject::Object(obj));
                 }
             }
@@ -495,7 +509,7 @@ impl<'a> Renderer<'a> {
                     let mut edge = Edge::new(Some(obj_id));
                     edge.set_stroke_width(Some(layer_style.stroke_width));
                     edge.set_stroke_color(Some(layer_style.stroke_color.clone().into_owned()));
-                    edge.set_xml_parent(Some(layer.id()));
+                    edge.set_xml_parent(Some(layer.id_shape()));
                     edge.geometry().set_width(width);
                     edge.geometry().set_height(height);
                     edge.geometry().set_relative(Some(true));
@@ -564,7 +578,7 @@ impl<'a> Renderer<'a> {
                 obj.set_font_color(Some(layer_style.text_color.clone().into_owned()));
                 obj.set_font_size(Some(font_height));
                 obj.set_font_family(Some(layer_style.font_family.clone().into_owned()));
-                obj.set_xml_parent(Some(layer.id()));
+                obj.set_xml_parent(Some(layer.id_label()));
                 obj.set_justify(*justify);
                 obj.apply_style_property("spacing", "0");
                 page.add_object(obj.into());
@@ -626,7 +640,7 @@ impl<'a> Renderer<'a> {
                     obj.set_width(width.abs());
                     obj.set_height(height.abs());
                     self.apply_fill_style(&mut obj, *fill_style, layer_style);
-                    obj.set_xml_parent(Some(layer.id()));
+                    obj.set_xml_parent(Some(layer.id_shape()));
                     obj.set_shape("mxgraph.basic.polygon".to_string());
                     obj.set_poly_coords(poly_coords);
                     page.add_object(DiagramObject::Object(obj));
@@ -650,7 +664,7 @@ impl<'a> Renderer<'a> {
                     obj.set_width(width.abs());
                     obj.set_height(height.abs());
                     self.apply_fill_style(&mut obj, *fill_style, layer_style);
-                    obj.set_xml_parent(Some(layer.id()));
+                    obj.set_xml_parent(Some(layer.id_shape()));
                     obj.set_shape("ellipse".to_string());
                     page.add_object(obj.into());
                 }

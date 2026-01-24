@@ -13,7 +13,7 @@
     "text_color": "#000000",
     "font_zoom": 1.2,
     "font_family": "Verdana",
-    "label_sch_visible": true,
+    "label_sch_visible": false,
     "shape_sch_visible": true
   },
   "instance": {
@@ -31,7 +31,7 @@
     "text_color": "#000000",
     "font_zoom": 1.2,
     "font_family": "Verdana",
-    "label_sch_visible": true,
+    "label_sch_visible": false,
     "shape_sch_visible": true
   },
   "wire_show_intersection": true,
@@ -60,7 +60,7 @@
     "text_color": "#000000",
     "font_zoom": 2,
     "font_family": "Times New Roman",
-    "label_sch_visible": true,
+    "label_sch_visible": false,
     "shape_sch_visible": true
   }
 }

@@ -31,7 +31,8 @@ export interface LayerStyle {
   font_family: string;
   font_zoom: number;
   priority: number;
-  sch_visible: boolean;
+  label_sch_visible: boolean;
+  shape_sch_visible: boolean;
 }
 
 export interface LayerStyles {

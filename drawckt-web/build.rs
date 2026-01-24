@@ -10,13 +10,14 @@ impl<'a> fmt::Display for LayerStyleFmt<'a> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
-            "drawckt::schematic::LayerStyle::new({:?}, {:?}, {:?}, {:?}, {:?}, {:?})",
+            "drawckt::schematic::LayerStyle::new({:?}, {:?}, {:?}, {:?}, {:?}, {:?}, {:?})",
             self.0.stroke_color,
             self.0.stroke_width,
             self.0.text_color,
             self.0.font_zoom,
             self.0.font_family,
-            self.0.sch_visible
+            self.0.label_sch_visible,
+            self.0.shape_sch_visible,
         )
     }
 }

@@ -40,7 +40,8 @@ const areStylesEqual = (a: LayerStyles, b: LayerStyles): boolean => {
       Math.abs(layerA.font_zoom - layerB.font_zoom) > Number.EPSILON ||
       layerA.font_family !== layerB.font_family ||
       layerA.priority !== layerB.priority ||
-      layerA.sch_visible !== layerB.sch_visible
+      layerA.label_sch_visible !== layerB.label_sch_visible ||
+      layerA.shape_sch_visible !== layerB.shape_sch_visible
     ) {
       return false;
     }
@@ -672,7 +673,15 @@ const LayerStylesEditor: React.FC<LayerStylesEditorProps> = ({
               <div className="layer-fields">
                 {/* Text Group */}
                 <div className="field-group">
-                  <div className="field-group-title">Label</div>
+                  <div className="field-group-title">
+                    <input
+                      type="checkbox"
+                      checked={layer.label_sch_visible}
+                      onChange={(e) => updateLayer(key, 'label_sch_visible', e.target.checked)}
+                      onClick={(e) => e.stopPropagation()}
+                    />
+                    Label
+                  </div>
                   <div className="field-group-content">
                     <div className="field">
                       <label>Font</label>
@@ -711,7 +720,15 @@ const LayerStylesEditor: React.FC<LayerStylesEditorProps> = ({
 
                 {/* Line Group */}
                 <div className="field-group">
-                  <div className="field-group-title">Shape</div>
+                  <div className="field-group-title">
+                    <input
+                      type="checkbox"
+                      checked={layer.shape_sch_visible}
+                      onChange={(e) => updateLayer(key, 'shape_sch_visible', e.target.checked)}
+                      onClick={(e) => e.stopPropagation()}
+                    />
+                    Shape
+                  </div>
                   <div className="field-group-content">
                     <div className="field">
                       <label>Color</label>
@@ -742,7 +759,15 @@ const LayerStylesEditor: React.FC<LayerStylesEditorProps> = ({
                 {/* Intersection Group (only for wire layer) */}
                 {key === 'wire' && (
                   <div className="field-group">
-                    <div className="field-group-title">Intersection</div>
+                    <div className="field-group-title">
+                      <input
+                        type="checkbox"
+                        checked={localStyles.wire_show_intersection}
+                        onChange={(e) => updateWireShowIntersection(e.target.checked)}
+                        onClick={(e) => e.stopPropagation()}
+                      />
+                      Intersection
+                    </div>
                     <div className="field-group-content">
                       <div className="field">
                         <label>Scale (%)</label>
@@ -754,36 +779,9 @@ const LayerStylesEditor: React.FC<LayerStylesEditorProps> = ({
                           onChange={(e) => updateWireIntersectionScale(parseFloat(e.target.value) / 100)}
                         />
                       </div>
-                      <div className="field">
-                        <label>
-                          <input
-                            type="checkbox"
-                            checked={localStyles.wire_show_intersection}
-                            onChange={(e) => updateWireShowIntersection(e.target.checked)}
-                          />
-                          Show
-                        </label>
-                      </div>
                     </div>
                   </div>
                 )}
-
-                {/* Visible in Schematic */}
-                <div className="field-group">
-                  <div className="field-group-title"></div>
-                  <div className="field-group-content">
-                    <div className="field">
-                      <label>
-                        <input
-                          type="checkbox"
-                          checked={layer.sch_visible}
-                          onChange={(e) => updateLayer(key, 'sch_visible', e.target.checked)}
-                        />
-                        Show in Schematic
-                      </label>
-                    </div>
-                  </div>
-                </div>
               </div>
             )}
           </div>

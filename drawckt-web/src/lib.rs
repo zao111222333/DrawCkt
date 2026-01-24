@@ -760,11 +760,16 @@ pub fn update_layer_styles(styles_json: &str) -> Result<JsValue, JsValue> {
 
         // Only sch_visible changed if no non-sch_visible changes and at least one sch_visible changed
         !has_non_sch_visible_changes
-            && (old_styles.wire.sch_visible != styles.wire.sch_visible
-                || old_styles.instance.sch_visible != styles.instance.sch_visible
-                || old_styles.device.sch_visible != styles.device.sch_visible
-                || old_styles.annotate.sch_visible != styles.annotate.sch_visible
-                || old_styles.pin.sch_visible != styles.pin.sch_visible)
+            && (old_styles.wire.label_sch_visible != styles.wire.label_sch_visible
+                || old_styles.instance.label_sch_visible != styles.instance.label_sch_visible
+                || old_styles.device.label_sch_visible != styles.device.label_sch_visible
+                || old_styles.annotate.label_sch_visible != styles.annotate.label_sch_visible
+                || old_styles.pin.label_sch_visible != styles.pin.label_sch_visible
+                || old_styles.wire.shape_sch_visible != styles.wire.shape_sch_visible
+                || old_styles.instance.shape_sch_visible != styles.instance.shape_sch_visible
+                || old_styles.device.shape_sch_visible != styles.device.shape_sch_visible
+                || old_styles.annotate.shape_sch_visible != styles.annotate.shape_sch_visible
+                || old_styles.pin.shape_sch_visible != styles.pin.shape_sch_visible)
     };
 
     // Update current style

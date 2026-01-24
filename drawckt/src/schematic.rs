@@ -31,8 +31,11 @@ impl fmt::Display for Layer {
 }
 
 impl Layer {
-    pub fn id(&self) -> String {
-        format!("layer-{self}")
+    pub fn id_label(&self) -> String {
+        format!("layer-{self}-label")
+    }
+    pub fn id_shape(&self) -> String {
+        format!("layer-{self}-shape")
     }
 }
 
@@ -43,7 +46,8 @@ pub struct LayerStyle {
     pub text_color: Cow<'static, str>,
     pub font_zoom: f64,
     pub font_family: Cow<'static, str>,
-    pub sch_visible: bool,
+    pub label_sch_visible: bool,
+    pub shape_sch_visible: bool,
 }
 
 impl LayerStyle {
@@ -53,7 +57,8 @@ impl LayerStyle {
         text_color: &'static str,
         font_zoom: f64,
         font_family: &'static str,
-        sch_visible: bool,
+        label_sch_visible: bool,
+        shape_sch_visible: bool,
     ) -> Self {
         Self {
             stroke_color: Cow::Borrowed(stroke_color),
@@ -61,7 +66,8 @@ impl LayerStyle {
             text_color: Cow::Borrowed(text_color),
             font_zoom,
             font_family: Cow::Borrowed(font_family),
-            sch_visible,
+            label_sch_visible,
+            shape_sch_visible,
         }
     }
 }
@@ -82,7 +88,8 @@ impl Default for LayerStyle {
             text_color: "#000000".into(),
             font_zoom: 1.0,
             font_family: default_font_family(),
-            sch_visible: true,
+            label_sch_visible: true,
+            shape_sch_visible: true,
         }
     }
 }
@@ -111,56 +118,14 @@ impl Default for LayerStyles {
                 Layer::Instance,
                 Layer::Device,
             ],
-            device: LayerStyle {
-                stroke_color: "#00FF00".into(),
-                stroke_width: 2.0,
-                text_color: "#FF0000".into(),
-                font_zoom: 1.0,
-                font_family: default_font_family_code(),
-                sch_visible: true,
-            },
-            instance: LayerStyle {
-                stroke_color: "#0000FF".into(),
-                stroke_width: 1.0,
-                text_color: "#0000FF".into(),
-                font_zoom: 1.0,
-                font_family: default_font_family_code(),
-                sch_visible: false,
-            },
-            wire: LayerStyle {
-                stroke_color: "#00FFFF".into(),
-                stroke_width: 2.0,
-                text_color: "#00CCCC".into(),
-                font_zoom: 1.0,
-                font_family: default_font_family_code(),
-                sch_visible: true,
-            },
+            device: LayerStyle::default(),
+            instance: LayerStyle::default(),
+            wire: LayerStyle::default(),
             wire_show_intersection: true,
             wire_intersection_scale: 1.0,
-            annotate: LayerStyle {
-                stroke_color: "#00FF00".into(),
-                stroke_width: 1.0,
-                text_color: "#FF9900".into(),
-                font_zoom: 1.0,
-                font_family: default_font_family_code(),
-                sch_visible: false,
-            },
-            pin: LayerStyle {
-                stroke_color: "#FF0000".into(),
-                stroke_width: 2.0,
-                text_color: "#FF0000".into(),
-                font_zoom: 1.0,
-                font_family: default_font_family_code(),
-                sch_visible: true,
-            },
-            text: LayerStyle {
-                stroke_color: "#666666".into(),
-                stroke_width: 1.0,
-                text_color: "#666666".into(),
-                font_zoom: 2.0,
-                font_family: default_font_family(),
-                sch_visible: true,
-            },
+            annotate: LayerStyle::default(),
+            pin: LayerStyle::default(),
+            text: LayerStyle::default(),
         }
     }
 }
