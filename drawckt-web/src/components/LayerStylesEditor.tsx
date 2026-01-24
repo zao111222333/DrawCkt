@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { LayerStyles } from '../wasm';
+import { LayerStyles, wasmAPI } from '../wasm';
 import './LayerStylesEditor.css';
 
 interface LayerStylesEditorProps {
@@ -527,7 +527,6 @@ const LayerStylesEditor: React.FC<LayerStylesEditorProps> = ({
 
   const handleSave = async () => {
     try {
-      const { wasmAPI } = await import('../wasm');
       await wasmAPI.fixCurrentStyle();
       // Reload styles from WASM to update fixedCurrentStyle
       const newStyles = await wasmAPI.getLayerStyles();
@@ -545,7 +544,6 @@ const LayerStylesEditor: React.FC<LayerStylesEditorProps> = ({
     if (fixedCurrentStyle) {
       // Reset current style to fixed style (get_current_fixed_style)
       try {
-        const { wasmAPI } = await import('../wasm');
         await wasmAPI.resetCurrentStyle();
         // Reload styles from WASM
         const newStyles = await wasmAPI.getLayerStyles();
@@ -568,7 +566,6 @@ const LayerStylesEditor: React.FC<LayerStylesEditorProps> = ({
 
   const handleExport = async () => {
     try {
-      const { wasmAPI } = await import('../wasm');
       const stylesState = await wasmAPI.getStylesState();
       
       if (!stylesState || typeof stylesState !== 'object' || !('current_name' in stylesState) || !('current' in stylesState)) {

@@ -1,6 +1,6 @@
-use crate::{BoundingBox, diagram::text_format::Justify};
 use crate::transform::FlipRotation;
 use crate::xml_base::XMLBase;
+use crate::{BoundingBox, diagram::text_format::Justify};
 use itertools::Either;
 
 pub struct Page {
@@ -183,9 +183,11 @@ impl DiagramObject {
     }
 
     pub fn justify_mut(&mut self) -> Option<&mut Justify> {
-        if let Self::Object(obj) = self{
+        if let Self::Object(obj) = self {
             Some(obj.justify_mut())
-        }else{None}
+        } else {
+            None
+        }
     }
 
     pub fn text_mut(&mut self) -> Option<&mut String> {

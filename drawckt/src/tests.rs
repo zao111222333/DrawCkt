@@ -20,7 +20,7 @@ macro_rules! assert_contains_path {
 #[test]
 fn test_merge_lines_1() {
     let lines = vec![vec![[0.0, 0.0], [1.0, 1.0]], vec![[1.0, 1.0], [2.0, 2.0]]];
-    let merged_lines = Renderer::merge_lines(lines);
+    let merged_lines = Renderer::merge_lines(lines.iter().collect());
     assert_eq!(merged_lines, vec![vec![[0.0, 0.0], [1.0, 1.0], [2.0, 2.0]]]);
 }
 
@@ -31,7 +31,7 @@ fn test_merge_lines_2() {
         vec![[2.90625, -1.25], [2.90625, -1.0]],
         vec![[2.75, -1.25], [2.90625, -1.25]],
     ];
-    let merged_lines = Renderer::merge_lines(lines);
+    let merged_lines = Renderer::merge_lines(lines.iter().collect());
     assert_eq!(
         merged_lines,
         vec![vec![
@@ -52,7 +52,7 @@ fn test_merge_lines_3() {
         vec![[2.75, -1.25], [2.90625, -1.25]],
         vec![[2.75, -1.25], [2.75, -1.125]],
     ];
-    let merged_lines = Renderer::merge_lines(lines);
+    let merged_lines = Renderer::merge_lines(lines.iter().collect());
     assert_contains_path!(
         merged_lines,
         [2.75, -1.0],
@@ -73,7 +73,7 @@ fn test_merge_lines_3_reordered() {
         vec![[2.75, -1.25], [2.90625, -1.25]],
         vec![[2.75, -1.25], [2.75, -1.125]],
     ];
-    let merged_lines = Renderer::merge_lines(lines);
+    let merged_lines = Renderer::merge_lines(lines.iter().collect());
     assert_contains_path!(
         merged_lines,
         [2.75, -1.0],
@@ -95,7 +95,7 @@ fn test_merge_lines_4() {
         vec![[-1.125, -1.65625], [-1.125, -1.625]],
         vec![[-1.25, -1.625], [-1.125, -1.625]],
     ];
-    let merged_lines = Renderer::merge_lines(lines);
+    let merged_lines = Renderer::merge_lines(lines.iter().collect());
     assert_contains_path!(merged_lines, [1.90625, -1.40625], [2.125, -1.40625]);
     assert_contains_path!(merged_lines, [4.90625, -1.40625], [5.125, -1.40625]);
     assert_contains_path!(
@@ -117,7 +117,7 @@ fn test_merge_lines_5() {
         vec![[3.8125, -1.25], [4.0, -1.25]],
         vec![[4.0, -1.25], [4.0, -1.125]],
     ];
-    let merged_lines = Renderer::merge_lines(lines);
+    let merged_lines = Renderer::merge_lines(lines.iter().collect());
     assert_contains_path!(merged_lines, [4.0, -1.375], [4.0, -1.25]);
     assert_contains_path!(merged_lines, [4.0, -1.25], [4.0, -1.125]);
     assert_contains_path!(

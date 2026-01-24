@@ -568,7 +568,15 @@ impl<'a> fmt::Display for ObjectStyleFormatter<'a> {
             }
             write!(f, "];")?;
         }
-
+        if let Some(flip_h) = self.0.geometry.flip_rotation().flip_h() {
+            write!(f, "flipH={};", flip_h)?;
+        }
+        if let Some(flip_v) = self.0.geometry.flip_rotation().flip_v() {
+            write!(f, "flipV={};", flip_v)?;
+        }
+        if let Some(rotation) = self.0.geometry.flip_rotation().rotation() {
+            write!(f, "rotation={};", rotation)?;
+        }
         // Add unsupported properties
         for (key, value) in self.0.base.unsupported_style_properties() {
             write!(f, "{}={};", key, value)?;

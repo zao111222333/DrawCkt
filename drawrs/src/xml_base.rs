@@ -97,10 +97,10 @@ impl<'a> fmt::Display for XMLBaseXml<'a> {
                     XMLBase::xml_ify(&self.0.id),
                     parent_id,
                     XMLBase::xml_ify(v),
-                    bbox.min_x(),
-                    bbox.min_y(),
-                    bbox.width(),
-                    bbox.height()
+                    bbox.min_x,
+                    bbox.min_y,
+                    bbox.width,
+                    bbox.height
                 )
             } else {
                 write!(
@@ -110,10 +110,10 @@ impl<'a> fmt::Display for XMLBaseXml<'a> {
         </mxCell>"#,
                     XMLBase::xml_ify(&self.0.id),
                     parent_id,
-                    bbox.min_x(),
-                    bbox.min_y(),
-                    bbox.width(),
-                    bbox.height()
+                    bbox.min_x,
+                    bbox.min_y,
+                    bbox.width,
+                    bbox.height
                 )
             }
         } else {

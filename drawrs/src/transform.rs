@@ -56,10 +56,10 @@ impl Orient {
 
 #[derive(Debug, Clone, Copy)]
 pub struct BoundingBox {
-    min_x: f64,
-    min_y: f64,
-    width: f64,
-    height: f64,
+    pub min_x: f64,
+    pub min_y: f64,
+    pub width: f64,
+    pub height: f64,
 }
 
 impl BoundingBox {
@@ -70,22 +70,6 @@ impl BoundingBox {
             width,
             height,
         }
-    }
-
-    pub fn min_x(&self) -> f64 {
-        self.min_x
-    }
-
-    pub fn min_y(&self) -> f64 {
-        self.min_y
-    }
-
-    pub fn width(&self) -> f64 {
-        self.width
-    }
-
-    pub fn height(&self) -> f64 {
-        self.height
     }
 
     pub fn max_x(&self) -> f64 {
@@ -104,8 +88,8 @@ impl BoundingBox {
 
         for bbox in bboxs {
             has_objects = true;
-            min_x = min_x.min(bbox.min_x());
-            min_y = min_y.min(bbox.min_y());
+            min_x = min_x.min(bbox.min_x);
+            min_y = min_y.min(bbox.min_y);
             max_x = max_x.max(bbox.max_x());
             max_y = max_y.max(bbox.max_y());
         }
@@ -214,19 +198,23 @@ impl<'a> GroupTransform<'a> {
         // Points keep their original coordinates within the group
         for point in points {
             match self.orient {
-                Orient::R0 => {
-                    point[0] += self.offset_x;
-                    point[1] += self.offset_y;
-                }
+                Orient::R0 => {}
                 Orient::MY => {
                     point[0] = -point[0];
-                    point[0] += self.offset_x;
-                    point[1] += self.offset_y;
                 }
-                _ => {
-                    return Err(UnsupportedOrient(self.orient));
+                Orient::R90 => {
+                    *point = [point[1], -point[0]];
                 }
+                Orient::R180 => return Err(UnsupportedOrient(self.orient)),
+                Orient::R270 => {
+                    *point = [-point[1], point[0]];
+                }
+                Orient::MX => return Err(UnsupportedOrient(self.orient)),
+                Orient::MYR90 => return Err(UnsupportedOrient(self.orient)),
+                Orient::MXR90 => return Err(UnsupportedOrient(self.orient)),
             }
+            point[0] += self.offset_x;
+            point[1] += self.offset_y;
         }
         Ok(())
     }
@@ -237,23 +225,26 @@ impl<'a> GroupTransform<'a> {
         // Bounding boxes and flip rotations keep their original values within the group
         if let Some((bbox, flip_rotation)) = bbox {
             match self.orient {
-                Orient::R0 => {
-                    bbox.min_x += self.offset_x;
-                    bbox.min_y += self.offset_y;
-                }
+                Orient::R0 => {}
                 Orient::R90 => {
-                    return Err(UnsupportedOrient(self.orient));
+                    [bbox.min_x, bbox.min_y] = [
+                        bbox.min_y - (bbox.width - bbox.height) / 2.0,
+                        -bbox.min_x - bbox.width / 2.0 - bbox.height / 2.0,
+                    ];
+                    flip_rotation.set_rotation(Some(-90.0));
                 }
                 Orient::R180 => {
                     return Err(UnsupportedOrient(self.orient));
                 }
                 Orient::R270 => {
-                    return Err(UnsupportedOrient(self.orient));
+                    [bbox.min_x, bbox.min_y] = [
+                        -bbox.min_y - (bbox.width + bbox.height) / 2.0,
+                        bbox.min_x + bbox.width / 2.0 - bbox.height / 2.0,
+                    ];
+                    flip_rotation.set_rotation(Some(90.0));
                 }
                 Orient::MY => {
-                    bbox.min_x = -(bbox.min_x + bbox.width());
-                    bbox.min_x += self.offset_x;
-                    bbox.min_y += self.offset_y;
+                    bbox.min_x = -(bbox.min_x + bbox.width);
                 }
                 Orient::MX => {
                     return Err(UnsupportedOrient(self.orient));
@@ -265,6 +256,8 @@ impl<'a> GroupTransform<'a> {
                     return Err(UnsupportedOrient(self.orient));
                 }
             }
+            bbox.min_x += self.offset_x;
+            bbox.min_y += self.offset_y;
         }
         Ok(())
     }
@@ -275,13 +268,13 @@ impl<'a> GroupTransform<'a> {
             match self.orient {
                 Orient::R0 => {}
                 Orient::R90 => {
-                    return Err(UnsupportedOrient(self.orient));
+                    // return Err(UnsupportedOrient(self.orient));
                 }
                 Orient::R180 => {
                     return Err(UnsupportedOrient(self.orient));
                 }
                 Orient::R270 => {
-                    return Err(UnsupportedOrient(self.orient));
+                    // return Err(UnsupportedOrient(self.orient));
                 }
                 Orient::MY => {
                     justify.x = match justify.x {

@@ -208,26 +208,23 @@ impl<'a> Renderer<'a> {
     }
 
     // Convert wires to HashMap grouped by net, with each wire as a Shape::Line
-    fn wires_to_shapes_by_net(&self) -> HashMap<String, Vec<Vec<[f64; 2]>>> {
+    fn wires_to_shapes_by_net(&self) -> HashMap<String, Vec<&Vec<[f64; 2]>>> {
         let mut shapes_by_net = HashMap::new();
-
         for wire in &self.schematic.wires {
             if wire.points.len() >= 2 {
-                let line = wire.points.clone();
                 shapes_by_net
                     .entry(wire.net.clone())
                     .or_insert_with(Vec::new)
-                    .push(line);
+                    .push(&wire.points);
             }
         }
-
         shapes_by_net
     }
 
     // Merge lines that share endpoints (same net, same endpoint, only two lines at that point)
-    pub(crate) fn merge_lines(lines: Vec<Vec<[f64; 2]>>) -> Vec<Vec<[f64; 2]>> {
+    pub(crate) fn merge_lines(lines: Vec<&Vec<[f64; 2]>>) -> Vec<Vec<[f64; 2]>> {
         if lines.is_empty() {
-            return lines;
+            return Vec::new();
         }
 
         // Helper to compare points using OrderedFloat
@@ -260,7 +257,7 @@ impl<'a> Renderer<'a> {
                         continue;
                     }
 
-                    let other_line = &lines[j];
+                    let other_line = lines[j];
 
                     if other_line.is_empty() {
                         continue;
@@ -454,13 +451,7 @@ impl<'a> Renderer<'a> {
     }
 
     // Unified function to render a single Shape
-    fn render_shape(
-        &self,
-        shape: &Shape,
-        page: &mut Page,
-        flip_y: &dyn Fn(f64) -> f64,
-        obj_id: String,
-    ) -> DrawcktResult<()> {
+    fn render_shape(&self, shape: &Shape, page: &mut Page, obj_id: String) -> DrawcktResult<()> {
         match shape {
             Shape::Rect {
                 layer,
@@ -469,7 +460,7 @@ impl<'a> Renderer<'a> {
             } => {
                 if b_box.len() >= 2 {
                     let x = b_box[0][0] * SCALE;
-                    let y = flip_y(b_box[1][1]);
+                    let y = -b_box[1][1] * SCALE;
                     let width = (b_box[1][0] - b_box[0][0]) * SCALE;
                     let height = (b_box[1][1] - b_box[0][1]) * SCALE;
 
@@ -498,9 +489,9 @@ impl<'a> Renderer<'a> {
                     let height = (target[1] - source[1]).abs() * SCALE;
 
                     let source_x = source[0] * SCALE;
-                    let source_y = flip_y(source[1]);
+                    let source_y = -source[1] * SCALE;
                     let target_x = target[0] * SCALE;
-                    let target_y = flip_y(target[1]);
+                    let target_y = -target[1] * SCALE;
 
                     let layer_style = self.get_layer_style(layer);
 
@@ -516,7 +507,7 @@ impl<'a> Renderer<'a> {
 
                     for point in &intermediate {
                         let point_x = point[0] * SCALE;
-                        let point_y = flip_y(point[1]);
+                        let point_y = -point[1] * SCALE;
                         edge.geometry().add_intermediate_point([point_x, point_y]);
                     }
 
@@ -533,9 +524,10 @@ impl<'a> Renderer<'a> {
             } => {
                 let layer_style = self.get_layer_style(layer);
                 let mut x = xy[0] * SCALE;
-                let mut y = flip_y(xy[1]);
+                let mut y = -xy[1] * SCALE;
                 let font_height = 1.2 * height * SCALE * layer_style.font_zoom;
                 let font_width = font_height * text.len() as f64 / 2.0;
+                let mut obj = Object::new(Some(obj_id));
                 {
                     // Adjust x based on JustifyX
                     match justify.x {
@@ -559,10 +551,11 @@ impl<'a> Renderer<'a> {
                         }
                         JustifyY::Bottom => {
                             y -= font_height;
+                            obj.apply_style_property("spacingBottom", "-2");
                         }
                     }
                 }
-                let mut obj = Object::new(Some(obj_id));
+
                 obj.set_value(text.clone());
                 obj.set_position([x, y]);
                 obj.set_width(font_width);
@@ -597,7 +590,7 @@ impl<'a> Renderer<'a> {
                     }
 
                     let x = min_x * SCALE;
-                    let y = flip_y(max_y_local); // Flip the top y coordinate
+                    let y = -max_y_local * SCALE;
                     let width = (max_x - min_x) * SCALE;
                     let height = (max_y_local - min_y_local) * SCALE;
 
@@ -647,7 +640,7 @@ impl<'a> Renderer<'a> {
             } => {
                 if b_box.len() >= 2 {
                     let x = b_box[0][0] * SCALE;
-                    let y = flip_y(b_box[1][1]);
+                    let y = -b_box[1][1] * SCALE;
                     let width = (b_box[1][0] - b_box[0][0]) * SCALE;
                     let height = (b_box[1][1] - b_box[0][1]) * SCALE;
 
@@ -671,17 +664,46 @@ impl<'a> Renderer<'a> {
         self.init_layers::<false>(page, &self.layer_styles.layer_order)?;
 
         // Helper function to flip Y coordinate: y_drawio = (symbol_max_y - y_json) * SCALE
-        let flip_y = |y: f64| -> f64 { -y * SCALE };
         // Render each shape in the template using SCALE to convert coordinates and flip Y
-        for (idx, shape) in template.shapes.iter().enumerate() {
-            self.render_shape(
-                shape,
-                page,
-                &flip_y,
-                template.gen_obj_id(shape.layer(), idx),
-            )?;
+        let mut lines_wire = Vec::new();
+        let mut lines_instance = Vec::new();
+        let mut lines_annotate = Vec::new();
+        let mut lines_pin = Vec::new();
+        let mut lines_device = Vec::new();
+        let mut lines_text = Vec::new();
+        let mut idx = 0;
+        for shape in &template.shapes {
+            if let Shape::Line { layer, points } = shape {
+                match layer {
+                    Layer::Wire => lines_wire.push(points),
+                    Layer::Instance => lines_instance.push(points),
+                    Layer::Annotate => lines_annotate.push(points),
+                    Layer::Pin => lines_pin.push(points),
+                    Layer::Device => lines_device.push(points),
+                    Layer::Text => lines_text.push(points),
+                }
+            } else {
+                self.render_shape(shape, page, template.gen_obj_id(shape.layer(), idx))?;
+                idx += 1;
+            }
         }
-
+        for (layer, lines) in [
+            (Layer::Wire, lines_wire),
+            (Layer::Instance, lines_instance),
+            (Layer::Annotate, lines_annotate),
+            (Layer::Pin, lines_pin),
+            (Layer::Device, lines_device),
+            (Layer::Text, lines_text),
+        ] {
+            for points in Self::merge_lines(lines) {
+                self.render_shape(
+                    &Shape::Line { layer, points },
+                    page,
+                    template.gen_obj_id(&layer, idx),
+                )?;
+                idx += 1;
+            }
+        }
         Ok(())
     }
 
@@ -702,7 +724,6 @@ impl<'a> Renderer<'a> {
         // drawio uses coordinate system where Y increases downward
         // Both instances and wires use y=0 as reference point for flipping
         // Helper function to flip Y coordinate: y_drawio = -y_json * SCALE
-        let flip_y = |y: f64| -> f64 { -y * SCALE };
 
         // Create schematic.drawio canvas
         let mut schematic_file = DrawFile::new();
@@ -725,7 +746,7 @@ impl<'a> Renderer<'a> {
                 let group_transform = GroupTransform::new(
                     symbol_page_data.origin_bounding_box,
                     instance.x * SCALE,
-                    flip_y(instance.y),
+                    -instance.y * SCALE,
                     Orient::from_str(&instance.orient),
                     &instance.name,
                     &instance.cell,
@@ -750,7 +771,6 @@ impl<'a> Renderer<'a> {
 
             // Render each merged line using render_shape
             for line in merged_lines {
-                let wire_id = Self::gen_wire_id(&net_name, wire_counter);
                 wire_counter += 1;
                 self.render_shape(
                     &Shape::Line {
@@ -758,8 +778,7 @@ impl<'a> Renderer<'a> {
                         layer: Layer::Wire,
                     },
                     &mut schematic_page,
-                    &flip_y,
-                    wire_id,
+                    Self::gen_wire_id(&net_name, wire_counter),
                 )?;
             }
         }
@@ -779,14 +798,13 @@ impl<'a> Renderer<'a> {
                     },
                 },
                 &mut schematic_page,
-                &flip_y,
                 format!("pin-{i}"),
             )?;
         }
 
         // Render labels
         for (i, label) in self.schematic.labels.iter().enumerate() {
-            self.render_shape(label, &mut schematic_page, &flip_y, format!("label-{i}"))?;
+            self.render_shape(label, &mut schematic_page, format!("label-{i}"))?;
         }
 
         // Render shapes (with wire_show_intersection check)
@@ -819,20 +837,14 @@ impl<'a> Renderer<'a> {
                                 b_box: scaled_b_box,
                             },
                             &mut schematic_page,
-                            &flip_y,
                             format!("shape-{i}"),
                         )?;
                     } else {
-                        self.render_shape(
-                            shape,
-                            &mut schematic_page,
-                            &flip_y,
-                            format!("shape-{i}"),
-                        )?;
+                        self.render_shape(shape, &mut schematic_page, format!("shape-{i}"))?;
                     }
                 }
             } else {
-                self.render_shape(shape, &mut schematic_page, &flip_y, format!("shape-{i}"))?;
+                self.render_shape(shape, &mut schematic_page, format!("shape-{i}"))?;
             }
         }
 

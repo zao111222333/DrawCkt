@@ -8,52 +8,52 @@
     "device"
   ],
   "device": {
-    "stroke_color": "#00FF00",
-    "stroke_width": 2.0,
-    "text_color": "#FF0000",
-    "font_zoom": 1.0,
+    "stroke_color": "#5ac36d",
+    "stroke_width": 2,
+    "text_color": "#e93423",
+    "font_zoom": 1.2,
     "font_family": "Verdana",
     "sch_visible": true
   },
   "instance": {
-    "stroke_color": "#0000FF",
-    "stroke_width": 1.0,
-    "text_color": "#0000FF",
-    "font_zoom": 1.0,
+    "stroke_color": "#e93423",
+    "stroke_width": 1,
+    "text_color": "#e93423",
+    "font_zoom": 1,
     "font_family": "Verdana",
     "sch_visible": false
   },
   "wire": {
-    "stroke_color": "#00FFFF",
-    "stroke_width": 2.0,
-    "text_color": "#00CCCC",
-    "font_zoom": 1.0,
+    "stroke_color": "#64bdf9",
+    "stroke_width": 2,
+    "text_color": "#64bdf9",
+    "font_zoom": 1.2,
     "font_family": "Verdana",
     "sch_visible": true
   },
   "wire_show_intersection": true,
-  "wire_intersection_scale": 1.0,
+  "wire_intersection_scale": 1,
   "annotate": {
-    "stroke_color": "#00FF00",
-    "stroke_width": 1.0,
-    "text_color": "#FF9900",
-    "font_zoom": 1.0,
+    "stroke_color": "#5ac36d",
+    "stroke_width": 1,
+    "text_color": "#ee8733",
+    "font_zoom": 1,
     "font_family": "Verdana",
     "sch_visible": false
   },
   "pin": {
-    "stroke_color": "#FF0000",
-    "stroke_width": 2.0,
-    "text_color": "#FF0000",
-    "font_zoom": 1.0,
+    "stroke_color": "#e93423",
+    "stroke_width": 2,
+    "text_color": "#e93423",
+    "font_zoom": 1.2,
     "font_family": "Verdana",
     "sch_visible": true
   },
   "text": {
     "stroke_color": "#666666",
-    "stroke_width": 1.0,
+    "stroke_width": 1,
     "text_color": "#666666",
-    "font_zoom": 2.0,
+    "font_zoom": 2,
     "font_family": "Times New Roman",
     "sch_visible": true
   }

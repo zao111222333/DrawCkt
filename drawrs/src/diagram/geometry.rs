@@ -68,19 +68,19 @@ impl Geometry {
     }
 
     pub fn x(&self) -> f64 {
-        self.bounding_box.min_x()
+        self.bounding_box.min_x
     }
 
     pub fn y(&self) -> f64 {
-        self.bounding_box.min_y()
+        self.bounding_box.min_y
     }
 
     pub fn width(&self) -> f64 {
-        self.bounding_box.width()
+        self.bounding_box.width
     }
 
     pub fn height(&self) -> f64 {
-        self.bounding_box.height()
+        self.bounding_box.height
     }
 
     pub fn bounding_box(&self) -> BoundingBox {
@@ -137,35 +137,35 @@ impl Geometry {
     pub fn set_x(&mut self, x: f64) {
         self.bounding_box = BoundingBox::new(
             x,
-            self.bounding_box.min_y(),
-            self.bounding_box.width(),
-            self.bounding_box.height(),
+            self.bounding_box.min_y,
+            self.bounding_box.width,
+            self.bounding_box.height,
         );
     }
 
     pub fn set_y(&mut self, y: f64) {
         self.bounding_box = BoundingBox::new(
-            self.bounding_box.min_x(),
+            self.bounding_box.min_x,
             y,
-            self.bounding_box.width(),
-            self.bounding_box.height(),
+            self.bounding_box.width,
+            self.bounding_box.height,
         );
     }
 
     pub fn set_width(&mut self, width: f64) {
         self.bounding_box = BoundingBox::new(
-            self.bounding_box.min_x(),
-            self.bounding_box.min_y(),
+            self.bounding_box.min_x,
+            self.bounding_box.min_y,
             width,
-            self.bounding_box.height(),
+            self.bounding_box.height,
         );
     }
 
     pub fn set_height(&mut self, height: f64) {
         self.bounding_box = BoundingBox::new(
-            self.bounding_box.min_x(),
-            self.bounding_box.min_y(),
-            self.bounding_box.width(),
+            self.bounding_box.min_x,
+            self.bounding_box.min_y,
+            self.bounding_box.width,
             height,
         );
     }
@@ -190,8 +190,8 @@ impl<'a> fmt::Display for GeometryXml<'a> {
                 r#"<mxGeometry width="{}" height="{}" relative="{}" as="{}">
             <mxPoint x="{}" y="{}" as="sourcePoint" />
             <mxPoint x="{}" y="{}" as="targetPoint" />"#,
-                self.0.bounding_box.width(),
-                self.0.bounding_box.height(),
+                self.0.bounding_box.width,
+                self.0.bounding_box.height,
                 if relative { "1" } else { "0" },
                 self.0.as_attribute,
                 source[0],
@@ -219,10 +219,10 @@ impl<'a> fmt::Display for GeometryXml<'a> {
             write!(
                 f,
                 r#"<mxGeometry x="{}" y="{}" width="{}" height="{}" as="{}" />"#,
-                self.0.bounding_box.min_x(),
-                self.0.bounding_box.min_y(),
-                self.0.bounding_box.width(),
-                self.0.bounding_box.height(),
+                self.0.bounding_box.min_x,
+                self.0.bounding_box.min_y,
+                self.0.bounding_box.width,
+                self.0.bounding_box.height,
                 self.0.as_attribute
             )
         }
