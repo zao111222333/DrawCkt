@@ -1,13 +1,13 @@
-use std::fmt;
-
 use crate::{
     DiagramObject,
     DrawrsError::UnsupportedOrient,
     DrawrsResult,
     diagram::text_format::{Justify, JustifyX},
 };
+use serde::{Deserialize, Serialize};
+use std::fmt;
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub enum Orient {
     R0,
     R90,
@@ -17,41 +17,6 @@ pub enum Orient {
     MX,
     MYR90,
     MXR90,
-}
-
-impl fmt::Display for Orient {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(
-            f,
-            "{}",
-            match self {
-                Orient::R0 => "R0",
-                Orient::R90 => "R90",
-                Orient::R180 => "R180",
-                Orient::R270 => "R270",
-                Orient::MY => "MY",
-                Orient::MX => "MX",
-                Orient::MYR90 => "MYR90",
-                Orient::MXR90 => "MXR90",
-            }
-        )
-    }
-}
-
-impl Orient {
-    pub fn from_str(s: &str) -> Self {
-        match s {
-            "R0" => Orient::R0,
-            "R90" => Orient::R90,
-            "R180" => Orient::R180,
-            "R270" => Orient::R270,
-            "MY" => Orient::MY,
-            "MX" => Orient::MX,
-            "MYR90" => Orient::MYR90,
-            "MXR90" => Orient::MXR90,
-            _ => Orient::R0,
-        }
-    }
 }
 
 #[derive(Debug, Clone, Copy)]

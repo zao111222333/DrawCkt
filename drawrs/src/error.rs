@@ -41,7 +41,7 @@ pub enum DrawrsError {
     #[error("BinaryNodeObject cannot have more than two children")]
     TooManyChildren,
 
-    #[error("UnsupportedOrient: {0}")]
+    #[error("UnsupportedOrient: {0:?}")]
     UnsupportedOrient(Orient),
 }
 

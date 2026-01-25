@@ -1,7 +1,7 @@
 use core::fmt;
 use std::borrow::Cow;
 
-use drawrs::diagram::text_format::Justify;
+use drawrs::{diagram::text_format::Justify, Orient};
 use indexmap::IndexSet;
 use ordered_float::OrderedFloat;
 use serde::{Deserialize, Serialize};
@@ -72,14 +72,6 @@ impl LayerStyle {
     }
 }
 
-fn default_font_family() -> Cow<'static, str> {
-    "Times New Roman".into()
-}
-
-fn default_font_family_code() -> Cow<'static, str> {
-    "Verdana".into()
-}
-
 impl Default for LayerStyle {
     fn default() -> Self {
         Self {
@@ -87,7 +79,7 @@ impl Default for LayerStyle {
             stroke_width: 1.0,
             text_color: "#000000".into(),
             font_zoom: 1.0,
-            font_family: default_font_family(),
+            font_family: "Times New Roman".into(),
             label_sch_visible: true,
             shape_sch_visible: true,
         }
@@ -154,7 +146,7 @@ pub struct Instance {
     pub cell: String,
     pub x: f64,
     pub y: f64,
-    pub orient: String,
+    pub orient: Orient,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

@@ -256,9 +256,62 @@ const SchematicView: React.FC<SchematicViewProps> = ({ ready, refreshKey, onEdit
                     }
                   };
                   
+                  // Create "Open in Draw.io" button
+                  const openDrawioBtn = document.createElement('button');
+                  openDrawioBtn.className = 'schematic-open-drawio-btn';
+                  openDrawioBtn.textContent = 'Open in Draw.io';
+                  openDrawioBtn.title = 'Open in Draw.io';
+                  openDrawioBtn.onclick = async () => {
+                    try {
+                      const content = await wasmAPI.getSchematicContent();
+                      // URI encode the content for R mode
+                      const encodedContent = encodeURIComponent(content);
+                      const drawioUrl = `https://app.diagrams.net/#R${encodedContent}`;
+                      window.open(drawioUrl, '_blank');
+                    } catch (error) {
+                      console.error('Failed to open in Draw.io:', error);
+                    }
+                  };
+                  
+                  // Create "Export" button
+                  const exportBtn = document.createElement('button');
+                  exportBtn.className = 'export-btn enabled';
+                  exportBtn.textContent = 'Export';
+                  exportBtn.title = 'Export Schematic';
+                  exportBtn.onclick = async () => {
+                    try {
+                      const content = await wasmAPI.getSchematicContent();
+                      // Get filename from document.title or use default
+                      let filename = 'schematic';
+                      const titleMatch = document.title.match(/^(.+?)\s*-\s*DrawCkt$/);
+                      if (titleMatch && titleMatch[1]) {
+                        filename = titleMatch[1];
+                      }
+                      // Ensure .drawio extension
+                      if (!filename.endsWith('.drawio')) {
+                        filename = `${filename}.drawio`;
+                      }
+                      
+                      // Create blob and download
+                      const blob = new Blob([content], { type: 'application/xml' });
+                      const url = URL.createObjectURL(blob);
+                      const a = document.createElement('a');
+                      a.href = url;
+                      a.download = filename;
+                      document.body.appendChild(a);
+                      a.click();
+                      document.body.removeChild(a);
+                      URL.revokeObjectURL(url);
+                    } catch (error) {
+                      console.error('Failed to export schematic:', error);
+                    }
+                  };
+                  
                   actionsContainer.appendChild(undoBtn);
                   actionsContainer.appendChild(redoBtn);
                   actionsContainer.appendChild(editBtn);
+                  actionsContainer.appendChild(openDrawioBtn);
+                  actionsContainer.appendChild(exportBtn);
                   
                   // Append toolbar to wrapper, then append actions (so it floats over toolbar)
                   toolbarWrapper.appendChild(toolbar);

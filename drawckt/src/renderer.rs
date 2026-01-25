@@ -4,8 +4,7 @@ use drawrs::diagram::text_format::{Justify, JustifyX, JustifyY};
 use drawrs::xml_base::XMLBase;
 use drawrs::FillStyle;
 use drawrs::{
-    parse_xml_to_object, BoundingBox, DiagramObject, DrawFile, Edge, GroupTransform, Object,
-    Orient, Page,
+    parse_xml_to_object, BoundingBox, DiagramObject, DrawFile, Edge, GroupTransform, Object, Page,
 };
 use indexmap::IndexMap;
 use log::info;
@@ -722,19 +721,17 @@ impl<'a> Renderer<'a> {
         // Parse symbol contexts to extract pages
         let mut symbol_pages = IndexMap::new();
         for (symbol_id, content) in &symbols_content.0 {
-            let symbol_key = format!("{}/{}", symbol_id.lib, symbol_id.cell);
             let pages = Self::parse_symbols_file(content)?;
             // Each symbol file should have only one page
             if let Some((_, page_data)) = pages.into_iter().next() {
-                symbol_pages.insert(symbol_key, page_data);
+                symbol_pages.insert((symbol_id.lib.as_ref(), symbol_id.cell.as_ref()), page_data);
             } else {
-                return Err(DrawcktError::SymbolNotFound(symbol_key));
+                return Err(DrawcktError::SymbolNotFound(format!(
+                    "{}/{}",
+                    symbol_id.lib, symbol_id.cell
+                )));
             }
         }
-        // schematic.json uses normal coordinate system (Y increases upward)
-        // drawio uses coordinate system where Y increases downward
-        // Both instances and wires use y=0 as reference point for flipping
-        // Helper function to flip Y coordinate: y_drawio = -y_json * SCALE
 
         // Create schematic.drawio canvas
         let mut schematic_file = DrawFile::new();
@@ -750,15 +747,15 @@ impl<'a> Renderer<'a> {
 
         // Process each instance
         for instance in &self.schematic.instances {
-            let symbol_key = format!("{}/{}", instance.lib, instance.cell);
-
-            if let Some(symbol_page_data) = symbol_pages.get(&symbol_key) {
+            if let Some(symbol_page_data) =
+                symbol_pages.get(&(instance.lib.as_ref(), instance.cell.as_ref()))
+            {
                 // Create GroupTransform using origin_bounding_box from SymbolPageData
                 let group_transform = GroupTransform::new(
                     symbol_page_data.origin_bounding_box,
                     instance.x * SCALE,
                     -instance.y * SCALE,
-                    Orient::from_str(&instance.orient),
+                    instance.orient,
                     &instance.name,
                     &instance.cell,
                 );
@@ -767,7 +764,10 @@ impl<'a> Renderer<'a> {
                     schematic_page.add_object(group_transform.new_obj(obj)?);
                 }
             } else {
-                return Err(DrawcktError::SymbolNotFound(symbol_key));
+                return Err(DrawcktError::SymbolNotFound(format!(
+                    "{}/{}",
+                    instance.lib, instance.cell
+                )));
             }
         }
 
