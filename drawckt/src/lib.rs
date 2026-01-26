@@ -5,4 +5,5 @@ pub mod schematic;
 mod tests;
 
 pub use error::{DrawcktError, DrawcktResult};
-pub use renderer::{SymbolId, SymbolPageData};
+pub use renderer::SymbolPageData;
+pub use schematic::DesignId;

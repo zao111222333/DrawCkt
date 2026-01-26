@@ -1,12 +1,13 @@
 use base64::Engine as _;
 use base64::engine::general_purpose;
-use drawckt::renderer::{Renderer, SymbolContexts, SymbolId};
-use drawckt::schematic::{LayerStyles, Schematic};
-use indexmap::IndexMap;
+use drawckt::renderer::{Renderer, SymbolContexts};
+use drawckt::schematic::{DesignId, LayerStyles, Schematic};
+use indexmap::{IndexMap, IndexSet};
 use serde::{Deserialize, Serialize};
 use std::borrow::Cow;
 use std::collections::HashMap;
 use std::io::{Read, Write};
+use std::iter::once;
 use std::sync::Mutex;
 use wasm_bindgen::prelude::*;
 use zip::CompressionMethod;
@@ -90,8 +91,8 @@ impl StylesState {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SymbolData {
-    pub lib: String,
-    pub cell: String,
+    #[serde(flatten)]
+    pub id: DesignId<'static>,
     pub history: HistoryContent,
 }
 
@@ -259,12 +260,6 @@ impl HistoryContent {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct SymbolInfo {
-    pub lib: String,
-    pub cell: String,
-}
-
 impl AppState {
     fn new() -> Self {
         Self {
@@ -294,12 +289,8 @@ impl AppState {
             self.symbols
                 .iter()
                 .map(|symbol_data| {
-                    let symbol_id = SymbolId {
-                        lib: symbol_data.lib.as_str().into(),
-                        cell: symbol_data.cell.as_str().into(),
-                    };
                     Ok((
-                        symbol_id,
+                        symbol_data.id.refs(),
                         symbol_data
                             .history
                             .get_current()
@@ -367,8 +358,7 @@ pub fn process_schematic_json_with_filename(
                 None
             } else {
                 Some(SymbolData {
-                    lib: symbol_id.lib.into_owned(),
-                    cell: symbol_id.cell.into_owned(),
+                    id: symbol_id.owned(),
                     history: HistoryContent::new(content.into_owned()),
                 })
             }
@@ -631,8 +621,8 @@ pub fn process_schematic_zip_with_filename(
         .symbols
         .iter()
         .map(|symbol| {
-            let lib = symbol.lib.clone();
-            let cell = symbol.cell.clone();
+            let lib = &symbol.id.lib;
+            let cell = &symbol.id.cell;
             // Read symbol drawio file
             // find_file will try base_path + symbols/lib/cell.drawio first, then symbols/lib/cell.drawio
             let symbol_path = format!("symbols/{}/{}.drawio", lib, cell);
@@ -653,7 +643,10 @@ pub fn process_schematic_zip_with_filename(
                 // Fallback: use drawio content as initial history
                 HistoryContent::new(symbol_content_str)
             };
-            Ok(SymbolData { lib, cell, history })
+            Ok(SymbolData {
+                id: symbol.id.clone(),
+                history,
+            })
         })
         .collect::<Result<Vec<SymbolData>, JsValue>>()?;
     state.schematic = Some(schematic);
@@ -676,7 +669,7 @@ pub fn get_symbol_content(lib: &str, cell: &str) -> Result<JsValue, JsValue> {
     let state = AppState::get_state();
 
     for symbol in &state.symbols {
-        if symbol.lib == lib && symbol.cell == cell {
+        if symbol.id.lib == lib && symbol.id.cell == cell {
             if let Some(content) = symbol.history.get_current() {
                 return Ok(JsValue::from_str(content));
             }
@@ -714,14 +707,11 @@ pub fn get_all_symbols() -> Result<JsValue, JsValue> {
     let state = AppState::get_state();
 
     // Filter out invalid symbols and convert to SymbolInfo structs
-    let symbols: Vec<SymbolInfo> = state
+    let symbols: Vec<DesignId<'static>> = state
         .symbols
         .iter()
-        .filter(|s| !s.lib.is_empty() && !s.cell.is_empty())
-        .map(|s| SymbolInfo {
-            lib: s.lib.clone(),
-            cell: s.cell.clone(),
-        })
+        .filter(|s| !s.id.lib.is_empty() && !s.id.cell.is_empty())
+        .map(|s| s.id.owned())
         .collect();
 
     log::debug!("Returning {} symbols", symbols.len());
@@ -737,22 +727,7 @@ pub fn update_layer_styles(styles_json: &str) -> Result<JsValue, JsValue> {
         .map_err(|e| JsValue::from_str(&format!("Failed to parse styles JSON: {}", e)))?;
 
     let mut state = AppState::get_state();
-    let old_styles = state.styles.get_current_style();
-    for symbol in &mut state.symbols {
-        if let Some(content) = symbol.history.get_current() {
-            let new_content = Renderer::update_style(content, old_styles, &new_styles)
-                .map_err(|e| JsValue::from_str(&format!("Failed to render symbols: {}", e)))?;
-            symbol.history.update(new_content);
-        }
-    }
-    if let Some(schematic) = &mut state.schematic_content
-        && let Some(content) = schematic.get_current()
-    {
-        let new_content = Renderer::update_style(content, old_styles, &new_styles)
-            .map_err(|e| JsValue::from_str(&format!("Failed to render schematic: {}", e)))?;
-        schematic.update(new_content);
-    }
-
+    state.apply_style_update(&new_styles)?;
     state.styles.current = new_styles;
     AppState::set_state(state);
 
@@ -780,15 +755,36 @@ pub fn get_current_fixed_layer_styles() -> Result<JsValue, JsValue> {
 pub fn update_symbol_content(lib: &str, cell: &str, content: String) -> Result<JsValue, JsValue> {
     log::info!("Updating symbol content: {}/{}", lib, cell);
 
+    let symbol_mapping = once(DesignId {
+        lib: Cow::Borrowed(lib),
+        cell: Cow::Borrowed(cell),
+    })
+    .collect::<IndexSet<_>>();
+
     let mut state = AppState::get_state();
 
-    // Find and update the symbol with history
+    let schematic_content = Renderer::update_symbol_content(
+        state
+            .schematic_content
+            .as_ref()
+            .and_then(HistoryContent::get_current)
+            .ok_or(JsValue::from_str("Schematic not rendered yet"))?,
+        &content,
+        &symbol_mapping,
+        state
+            .schematic
+            .as_ref()
+            .ok_or(JsValue::from_str("Schematic not found"))?,
+        &state.styles.get_current_style(),
+    )
+    .map_err(|e| JsValue::from_str(&format!("Failed to render schematic: {}", e)))?;
+    state.update_schematic_content(schematic_content);
+
     let mut found = false;
     for symbol in &mut state.symbols {
-        if symbol.lib == lib && symbol.cell == cell {
-            symbol.history.update(content);
+        if symbol_mapping.contains(&symbol.id) {
+            symbol.history.update(content.clone());
             found = true;
-            break;
         }
     }
 
@@ -797,21 +793,6 @@ pub fn update_symbol_content(lib: &str, cell: &str, content: String) -> Result<J
             "Symbol {}/{} not found",
             lib, cell
         )));
-    }
-
-    // Re-render only the updated symbol and schematic
-    if let Some(schematic) = &state.schematic {
-        log::info!("Re-rendering symbol and schematic with updated content");
-        let renderer = Renderer::new(&schematic, state.styles.get_current_style());
-
-        // Rebuild symbol_contexts from updated state
-        // Re-render schematic with updated symbols
-        let schematic_content = renderer
-            .render_schematic_file(&state.symbol_contents()?)
-            .map_err(|e| JsValue::from_str(&format!("Failed to render schematic: {}", e)))?;
-
-        // Update schematic history
-        state.update_schematic_content(schematic_content);
     }
 
     AppState::set_state(state);
@@ -832,7 +813,7 @@ pub fn undo_symbol(lib: &str, cell: &str) -> Result<JsValue, JsValue> {
     // Find and undo the symbol
     let mut found = false;
     for symbol in &mut state.symbols {
-        if symbol.lib == lib && symbol.cell == cell {
+        if symbol.id.lib == lib && symbol.id.cell == cell {
             match symbol.history.undo() {
                 Ok(_) => {
                     found = true;
@@ -886,7 +867,7 @@ pub fn redo_symbol(lib: &str, cell: &str) -> Result<JsValue, JsValue> {
     // Find and redo the symbol
     let mut found = false;
     for symbol in &mut state.symbols {
-        if symbol.lib == lib && symbol.cell == cell {
+        if symbol.id.lib == lib && symbol.id.cell == cell {
             match symbol.history.redo() {
                 Ok(_) => {
                     found = true;
@@ -938,10 +919,10 @@ pub fn get_symbol_info(lib: &str, cell: &str) -> Result<JsValue, JsValue> {
     let state = AppState::get_state();
 
     for symbol in &state.symbols {
-        if symbol.lib == lib && symbol.cell == cell {
+        if symbol.id.lib == lib && symbol.id.cell == cell {
             return serde_wasm_bindgen::to_value(&serde_json::json!({
-                "lib": symbol.lib,
-                "cell": symbol.cell,
+                "lib": symbol.id.lib,
+                "cell": symbol.id.cell,
                 "current_idx": symbol.history.current_idx,
                 "hist_len": symbol.history.hist_content.len(),
                 "can_undo": symbol.history.can_undo(),
@@ -967,6 +948,37 @@ impl AppState {
         } else {
             self.schematic_content = Some(HistoryContent::new(content));
         }
+    }
+
+    /// Apply style update to all symbols and schematic content
+    /// This uses Renderer::update_style to efficiently update existing content
+    /// instead of re-rendering from scratch
+    fn apply_style_update(&mut self, new_styles: &LayerStyles) -> Result<(), JsValue> {
+        let old_styles = self.styles.get_current_style();
+
+        // Update all symbols
+        for symbol in &mut self.symbols {
+            if let Some(content) = symbol.history.get_current() {
+                let new_content =
+                    Renderer::update_style(content, old_styles, new_styles).map_err(|e| {
+                        JsValue::from_str(&format!("Failed to update symbol style: {}", e))
+                    })?;
+                symbol.history.update(new_content);
+            }
+        }
+
+        // Update schematic content
+        if let Some(schematic) = &mut self.schematic_content
+            && let Some(content) = schematic.get_current()
+        {
+            let new_content =
+                Renderer::update_style(content, old_styles, new_styles).map_err(|e| {
+                    JsValue::from_str(&format!("Failed to update schematic style: {}", e))
+                })?;
+            schematic.update(new_content);
+        }
+
+        Ok(())
     }
 }
 
@@ -1080,33 +1092,12 @@ pub fn set_current_style(name: &str) -> Result<JsValue, JsValue> {
     }
 
     state.styles.fix_current();
-    state.styles.current = state.styles.all[name].clone();
+    let new_styles = state.styles.all[name].clone();
     state.styles.current_name = name.to_string();
 
-    // Re-render if schematic exists
-    if let Some(schematic) = &state.schematic {
-        let renderer = Renderer::new(&schematic, state.styles.get_current_style());
-
-        let symbol_contexts = renderer
-            .render_symbols_file()
-            .map_err(|e| JsValue::from_str(&format!("Failed to render symbols: {}", e)))?;
-
-        // Update each symbol's content
-        for (symbol_id, new_content) in symbol_contexts.0 {
-            for symbol_data in &mut state.symbols {
-                if symbol_data.lib == symbol_id.lib && symbol_data.cell == symbol_id.cell {
-                    symbol_data.history.update(new_content.into_owned());
-                    break;
-                }
-            }
-        }
-
-        let schematic_content = renderer
-            .render_schematic_file(&state.symbol_contents()?)
-            .map_err(|e| JsValue::from_str(&format!("Failed to render schematic: {}", e)))?;
-
-        state.update_schematic_content(schematic_content);
-    }
+    // Apply style update using the same logic as update_layer_styles
+    state.apply_style_update(&new_styles)?;
+    state.styles.current = new_styles;
 
     AppState::set_state(state);
 
@@ -1122,32 +1113,11 @@ pub fn add_style(name: &str, styles_json: &str) -> Result<JsValue, JsValue> {
         .map_err(|e| JsValue::from_str(&format!("Failed to parse styles JSON: {}", e)))?;
 
     let mut state = AppState::get_state();
-    state.styles.add_style(name.to_string(), styles);
+    state.styles.add_style(name.to_string(), styles.clone());
 
-    // Re-render if schematic exists
-    if let Some(schematic) = &state.schematic {
-        let renderer = Renderer::new(&schematic, state.styles.get_current_style());
-
-        let symbol_contexts = renderer
-            .render_symbols_file()
-            .map_err(|e| JsValue::from_str(&format!("Failed to render symbols: {}", e)))?;
-
-        // Update each symbol's content
-        for (symbol_id, new_content) in symbol_contexts.0 {
-            for symbol_data in &mut state.symbols {
-                if symbol_data.lib == symbol_id.lib && symbol_data.cell == symbol_id.cell {
-                    symbol_data.history.update(new_content.into_owned());
-                    break;
-                }
-            }
-        }
-
-        let schematic_content = renderer
-            .render_schematic_file(&state.symbol_contents()?)
-            .map_err(|e| JsValue::from_str(&format!("Failed to render schematic: {}", e)))?;
-
-        state.update_schematic_content(schematic_content);
-    }
+    // Apply style update using the same logic as update_layer_styles
+    state.apply_style_update(&styles)?;
+    state.styles.current = styles;
 
     AppState::set_state(state);
 
@@ -1160,18 +1130,11 @@ pub fn add_style(name: &str, styles_json: &str) -> Result<JsValue, JsValue> {
 #[wasm_bindgen]
 pub fn reset_current_style() -> Result<JsValue, JsValue> {
     let mut state = AppState::get_state();
-    state.styles.current = state.styles.get_current_fixed_style().clone();
+    let new_styles = state.styles.get_current_fixed_style().clone();
 
-    // Re-render if schematic exists
-    if let Some(schematic) = &state.schematic {
-        let renderer = Renderer::new(&schematic, state.styles.get_current_style());
-
-        let schematic_content = renderer
-            .render_schematic_file(&state.symbol_contents()?)
-            .map_err(|e| JsValue::from_str(&format!("Failed to render schematic: {}", e)))?;
-
-        state.update_schematic_content(schematic_content);
-    }
+    // Apply style update using the same logic as update_layer_styles
+    state.apply_style_update(&new_styles)?;
+    state.styles.current = new_styles;
 
     AppState::set_state(state);
 
@@ -1370,8 +1333,10 @@ pub fn export_all_files() -> Result<JsValue, JsValue> {
         for symbol_data in &state.symbols {
             // Get current content from history
             if let Some(content) = symbol_data.history.get_current() {
-                let symbol_path =
-                    format!("symbols/{}/{}.drawio", symbol_data.lib, symbol_data.cell);
+                let symbol_path = format!(
+                    "symbols/{}/{}.drawio",
+                    symbol_data.id.lib, symbol_data.id.cell
+                );
                 zip.start_file(&symbol_path, options).map_err(|e| {
                     JsValue::from_str(&format!("Failed to add {} to ZIP: {}", symbol_path, e))
                 })?;
@@ -1380,9 +1345,11 @@ pub fn export_all_files() -> Result<JsValue, JsValue> {
                 })?;
 
                 // Add symbol history zip
-                let hist_zip_data = symbol_data.history.hist_zip(&symbol_data.cell)?;
-                let hist_zip_path =
-                    format!("symbols/{}/{}.hist.zip", symbol_data.lib, symbol_data.cell);
+                let hist_zip_data = symbol_data.history.hist_zip(&symbol_data.id.cell)?;
+                let hist_zip_path = format!(
+                    "symbols/{}/{}.hist.zip",
+                    symbol_data.id.lib, symbol_data.id.cell
+                );
                 zip.start_file(&hist_zip_path, options).map_err(|e| {
                     JsValue::from_str(&format!("Failed to add {} to ZIP: {}", hist_zip_path, e))
                 })?;

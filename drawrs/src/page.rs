@@ -101,6 +101,15 @@ impl Page {
         self.objects.push(obj);
     }
 
+    pub fn add_layer_cell(&mut self, visible: bool, id: String, name: String) {
+        let mut layer_cell = XMLBase::new(Some(id));
+        layer_cell.xml_class = "mxCell".to_string();
+        layer_cell.xml_parent = Some("0".to_string());
+        layer_cell.value = Some(name);
+        layer_cell.visible = Some(if visible { "1" } else { "0" }.to_string());
+        self.add_object(DiagramObject::XmlBase(layer_cell));
+    }
+
     pub fn remove_object(&mut self, obj_id: &str) {
         self.objects.retain(|o| o.id() != obj_id);
     }
@@ -225,6 +234,9 @@ impl DiagramObject {
     }
     pub fn set_id(&mut self, id: String) {
         self.base_mut().id = id;
+    }
+    pub fn tag(&self) -> Option<&String> {
+        self.base().tag.as_ref()
     }
     pub fn set_tag(&mut self, tag: Option<String>) {
         self.base_mut().tag = tag;

@@ -31,6 +31,9 @@ impl fmt::Display for Layer {
 }
 
 impl Layer {
+    pub fn id_user(&self) -> String {
+        format!("layer-{self}-your-drawing")
+    }
     pub fn id_label(&self) -> String {
         format!("layer-{self}-label")
     }
@@ -141,7 +144,7 @@ impl Default for LayerStyles {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Schematic {
-    pub design: Design,
+    pub design: DesignId<'static>,
     pub instances: Vec<Instance>,
     pub wires: Vec<Wire>,
     pub pins: Vec<Pin>,
@@ -150,17 +153,41 @@ pub struct Schematic {
     pub shapes: Vec<Shape>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct Design {
-    pub lib: String,
-    pub cell: String,
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct DesignId<'a> {
+    pub lib: Cow<'a, str>,
+    pub cell: Cow<'a, str>,
+}
+
+impl DesignId<'static> {
+    pub fn refs<'a>(&'a self) -> DesignId<'a> {
+        DesignId {
+            lib: Cow::Borrowed(self.lib.as_ref()),
+            cell: Cow::Borrowed(self.cell.as_ref()),
+        }
+    }
+}
+
+impl<'a> DesignId<'a> {
+    pub fn owned(&self) -> DesignId<'static> {
+        DesignId {
+            lib: Cow::Owned(self.lib.clone().into_owned()),
+            cell: Cow::Owned(self.cell.clone().into_owned()),
+        }
+    }
+}
+
+impl fmt::Display for DesignId<'_> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}/{}", self.lib, self.cell)
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Instance {
     pub name: String,
-    pub lib: String,
-    pub cell: String,
+    #[serde(flatten)]
+    pub symbol_id: DesignId<'static>,
     pub x: f64,
     pub y: f64,
     pub orient: Orient,
@@ -182,8 +209,8 @@ pub struct Pin {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Symbol {
-    pub lib: String,
-    pub cell: String,
+    #[serde(flatten)]
+    pub id: DesignId<'static>,
     pub shapes: IndexSet<Shape>,
     pub pins: Vec<TemplatePin>,
 }
@@ -191,7 +218,7 @@ pub struct Symbol {
 impl Symbol {
     // Generate ID for symbol layer/object/edge: {lib}/{cell}-{layer}-{idx}
     pub fn gen_obj_id(&self, layer: &Layer, idx: usize) -> String {
-        format!("{}/{}-{}-{}", self.lib, self.cell, layer, idx)
+        format!("{}-{}-{}", self.id, layer, idx)
     }
 }
 

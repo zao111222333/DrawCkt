@@ -6,13 +6,13 @@ use drawrs::xml_base::XMLBase;
 use drawrs::{
     BoundingBox, DiagramObject, DrawFile, Edge, GroupTransform, Object, Page, parse_xml_to_object,
 };
-use indexmap::IndexMap;
+use indexmap::{IndexMap, IndexSet};
 use log::info;
 use ordered_float::OrderedFloat;
 use quick_xml::Reader;
 use quick_xml::events::Event;
 use std::borrow::Cow;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::fs;
 use std::path::Path;
 
@@ -175,13 +175,7 @@ impl SymbolPageData {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct SymbolId<'a> {
-    pub lib: Cow<'a, str>,
-    pub cell: Cow<'a, str>,
-}
-
-pub struct SymbolContexts<'a>(pub IndexMap<SymbolId<'a>, Cow<'a, str>>);
+pub struct SymbolContexts<'a>(pub IndexMap<DesignId<'a>, Cow<'a, str>>);
 
 impl<'a> SymbolContexts<'a> {
     /// Write all symbols to directory structure: {dir}/{lib}/{cell}.drawio
@@ -238,7 +232,7 @@ impl<'a> SymbolContexts<'a> {
                                 })?;
 
                             let content = fs::read_to_string(&cell_path)?;
-                            let symbol_id = SymbolId {
+                            let symbol_id = DesignId {
                                 lib: lib_name.to_string().into(),
                                 cell: cell_name.to_string().into(),
                             };
@@ -268,89 +262,6 @@ impl<'a> Renderer<'a> {
             schematic,
             layer_styles,
         }
-    }
-
-    fn init_layers(style: &LayerStyles, page: &mut Page) -> DrawcktResult<()> {
-        let mut instance = false;
-        let mut annotate = false;
-        let mut pin = false;
-        let mut device = false;
-        let mut wire = false;
-        let mut text = false;
-        for layer in style.layer_order.iter().rev() {
-            match layer {
-                Layer::Instance => {
-                    if instance {
-                        return Err(DrawcktError::RepeatLayer(*layer));
-                    }
-                    instance = true;
-                }
-                Layer::Annotate => {
-                    if annotate {
-                        return Err(DrawcktError::RepeatLayer(*layer));
-                    }
-                    annotate = true;
-                }
-                Layer::Pin => {
-                    if pin {
-                        return Err(DrawcktError::RepeatLayer(*layer));
-                    }
-                    pin = true;
-                }
-                Layer::Device => {
-                    if device {
-                        return Err(DrawcktError::RepeatLayer(*layer));
-                    }
-                    device = true;
-                }
-                Layer::Wire => {
-                    if wire {
-                        return Err(DrawcktError::RepeatLayer(*layer));
-                    }
-                    wire = true;
-                }
-                Layer::Text => {
-                    if text {
-                        return Err(DrawcktError::RepeatLayer(*layer));
-                    }
-                    text = true;
-                }
-            }
-            if *layer == Layer::Wire {
-                let mut intersection_layer_cell =
-                    drawrs::xml_base::XMLBase::new(Some(layer.id_shape(true)));
-                intersection_layer_cell.xml_class = "mxCell".to_string();
-                intersection_layer_cell.xml_parent = Some("0".to_string());
-                intersection_layer_cell.value = Some(format!("{layer}-intersection"));
-                intersection_layer_cell.visible = Some(if style.wire_show_intersection {
-                    "1".to_string()
-                } else {
-                    "0".to_string()
-                });
-                page.add_object(drawrs::DiagramObject::XmlBase(intersection_layer_cell));
-            }
-            let mut shape_layer_cell = drawrs::xml_base::XMLBase::new(Some(layer.id_shape(false)));
-            shape_layer_cell.xml_class = "mxCell".to_string();
-            shape_layer_cell.xml_parent = Some("0".to_string());
-            shape_layer_cell.value = Some(format!("{layer}-shape"));
-            shape_layer_cell.visible = Some(if style.layer_style(layer).shape_sch_visible {
-                "1".to_string()
-            } else {
-                "0".to_string()
-            });
-            page.add_object(drawrs::DiagramObject::XmlBase(shape_layer_cell));
-            let mut label_layer_cell = drawrs::xml_base::XMLBase::new(Some(layer.id_label()));
-            label_layer_cell.xml_class = "mxCell".to_string();
-            label_layer_cell.xml_parent = Some("0".to_string());
-            label_layer_cell.value = Some(format!("{layer}-label"));
-            label_layer_cell.visible = Some(if style.layer_style(layer).label_sch_visible {
-                "1".to_string()
-            } else {
-                "0".to_string()
-            });
-            page.add_object(drawrs::DiagramObject::XmlBase(label_layer_cell));
-        }
-        Ok(())
     }
 
     // Generate ID for wire: wire-{net}-{counter} or wire-{uuid}
@@ -587,17 +498,13 @@ impl<'a> Renderer<'a> {
             .symbols
             .iter()
             .map(|template| {
-                let name = format!("{}/{}", template.lib, template.cell);
+                let name = template.id.to_string();
                 let mut symbol_page = Page::new(Some(name.clone()), false);
                 symbol_page.set_name(name);
                 self.render_symbol(&mut symbol_page, template)?;
                 let mut symbol_file = DrawFile::new();
                 symbol_file.add_page(symbol_page);
-                let symbol_id = SymbolId {
-                    lib: template.lib.as_str().into(),
-                    cell: template.cell.as_str().into(),
-                };
-                Ok((symbol_id, symbol_file.xml().to_string().into()))
+                Ok((template.id.refs(), symbol_file.xml().to_string().into()))
             })
             .collect::<Result<_, DrawcktError>>()?;
         Ok(SymbolContexts(contexts))
@@ -822,7 +729,7 @@ impl<'a> Renderer<'a> {
     }
 
     fn render_symbol(&self, page: &mut Page, template: &Symbol) -> DrawcktResult<()> {
-        Self::init_layers(&self.layer_styles, page)?;
+        self.layer_styles.init_layers(page)?;
 
         let mut lines_wire = Vec::new();
         let mut lines_instance = Vec::new();
@@ -874,12 +781,9 @@ impl<'a> Renderer<'a> {
             let mut pages = Self::parse_drawio_file(content)?;
             // Each symbol file should have only one page
             if let Some((_, page_data)) = pages.pop() {
-                symbol_pages.insert((symbol_id.lib.as_ref(), symbol_id.cell.as_ref()), page_data);
+                symbol_pages.insert(symbol_id, page_data);
             } else {
-                return Err(DrawcktError::SymbolNotFound(format!(
-                    "{}/{}",
-                    symbol_id.lib, symbol_id.cell
-                )));
+                return Err(DrawcktError::SymbolNotFound(symbol_id.to_string()));
             }
         }
 
@@ -887,19 +791,14 @@ impl<'a> Renderer<'a> {
         let mut schematic_file = DrawFile::new();
 
         // Set page name to "{lib}/{cell}"
-        let page_name = format!(
-            "{}/{}",
-            self.schematic.design.lib, self.schematic.design.cell
-        );
+        let page_name = self.schematic.design.to_string();
         let mut schematic_page = Page::new(Some(page_name.clone()), false);
         schematic_page.set_name(page_name);
-        Self::init_layers(&self.layer_styles, &mut schematic_page)?;
+        self.layer_styles.init_layers(&mut schematic_page)?;
 
         // Process each instance
         for instance in &self.schematic.instances {
-            if let Some(symbol_page_data) =
-                symbol_pages.get(&(instance.lib.as_ref(), instance.cell.as_ref()))
-            {
+            if let Some(symbol_page_data) = symbol_pages.get(&instance.symbol_id) {
                 // Create GroupTransform using origin_bounding_box from SymbolPageData
                 let group_transform = GroupTransform::new(
                     symbol_page_data.origin_bounding_box,
@@ -907,17 +806,14 @@ impl<'a> Renderer<'a> {
                     -instance.y * SCALE,
                     instance.orient,
                     &instance.name,
-                    &instance.cell,
+                    instance.symbol_id.cell.as_ref(),
                 );
                 for obj in &symbol_page_data.objects {
                     // Get the new group bounding box
                     schematic_page.add_object(group_transform.new_obj(obj)?);
                 }
             } else {
-                return Err(DrawcktError::SymbolNotFound(format!(
-                    "{}/{}",
-                    instance.lib, instance.cell
-                )));
+                return Err(DrawcktError::SymbolNotFound(instance.symbol_id.to_string()));
             }
         }
 
@@ -1253,21 +1149,148 @@ impl<'a> Renderer<'a> {
         new_style: &LayerStyles,
     ) -> DrawcktResult<String> {
         // Each symbol file should have only one page
-        if let Some((page_name, page_data)) = Self::parse_drawio_file(content)?.pop() {
-            let mut page = Page::new(Some(page_name.clone()), false);
-            page.set_name(page_name);
-            Self::init_layers(new_style, &mut page)?;
-            for obj_res in page_data.update_style(old_style, new_style) {
-                // Get the new group bounding box
-                if let Some(obj) = obj_res? {
-                    page.add_object(obj);
+        let (page_name, page_data) = Self::parse_drawio_file(content)?
+            .pop()
+            .ok_or(DrawcktError::NoPage)?;
+        let mut page = Page::new(Some(page_name.clone()), false);
+        page.set_name(page_name);
+        new_style.init_layers(&mut page)?;
+        for obj_res in page_data.update_style(old_style, new_style) {
+            // Get the new group bounding box
+            if let Some(obj) = obj_res? {
+                page.add_object(obj);
+            }
+        }
+        let mut file = DrawFile::new();
+        file.add_page(page);
+        Ok(file.xml().to_string())
+    }
+    pub fn update_symbol_content(
+        schematic_content: &str,
+        symbol_content: &str,
+        symbol_mapping: &IndexSet<DesignId<'_>>,
+        schematic: &Schematic,
+        style: &LayerStyles,
+    ) -> DrawcktResult<String> {
+        // Each symbol file should have only one page
+        let (page_name, page_data) = Self::parse_drawio_file(schematic_content)?
+            .pop()
+            .ok_or(DrawcktError::NoPage)?;
+        let (_, symbol_page_data) = Self::parse_drawio_file(symbol_content)?
+            .pop()
+            .ok_or(DrawcktError::NoPage)?;
+
+        let mut schematic_page = Page::new(Some(page_name.clone()), false);
+        schematic_page.set_name(page_name);
+        style.init_layers(&mut schematic_page)?;
+        let mut inst_need_update = HashSet::new();
+        for instance in &schematic.instances {
+            if symbol_mapping.contains(&instance.symbol_id) {
+                inst_need_update.insert(&instance.name);
+                let group_transform = GroupTransform::new(
+                    symbol_page_data.origin_bounding_box,
+                    instance.x * SCALE,
+                    -instance.y * SCALE,
+                    instance.orient,
+                    &instance.name,
+                    instance.symbol_id.cell.as_ref(),
+                );
+                for obj in &symbol_page_data.objects {
+                    // Get the new group bounding box
+                    schematic_page.add_object(group_transform.new_obj(obj)?);
                 }
             }
-            let mut file = DrawFile::new();
-            file.add_page(page);
-            Ok(file.xml().to_string())
-        } else {
-            Err(DrawcktError::NoPage)
         }
+        for obj in page_data.objects {
+            if let Some(tag) = obj.tag()
+                && inst_need_update.contains(tag)
+            {
+            } else {
+                schematic_page.add_object(obj);
+            }
+        }
+        let mut file = DrawFile::new();
+        file.add_page(schematic_page);
+        Ok(file.xml().to_string())
+    }
+}
+
+impl LayerStyles {
+    fn init_layers(&self, page: &mut Page) -> DrawcktResult<()> {
+        page.add_layer_cell(
+            true,
+            "layer-background-your-drawing".to_string(),
+            "background-your-drawing".to_string(),
+        );
+        let mut instance = false;
+        let mut annotate = false;
+        let mut pin = false;
+        let mut device = false;
+        let mut wire = false;
+        let mut text = false;
+        for layer in self.layer_order.iter().rev() {
+            match layer {
+                Layer::Instance => {
+                    if instance {
+                        return Err(DrawcktError::RepeatLayer(*layer));
+                    }
+                    instance = true;
+                }
+                Layer::Annotate => {
+                    if annotate {
+                        return Err(DrawcktError::RepeatLayer(*layer));
+                    }
+                    annotate = true;
+                }
+                Layer::Pin => {
+                    if pin {
+                        return Err(DrawcktError::RepeatLayer(*layer));
+                    }
+                    pin = true;
+                }
+                Layer::Device => {
+                    if device {
+                        return Err(DrawcktError::RepeatLayer(*layer));
+                    }
+                    device = true;
+                }
+                Layer::Wire => {
+                    if wire {
+                        return Err(DrawcktError::RepeatLayer(*layer));
+                    }
+                    wire = true;
+                }
+                Layer::Text => {
+                    if text {
+                        return Err(DrawcktError::RepeatLayer(*layer));
+                    }
+                    text = true;
+                }
+            }
+            page.add_layer_cell(true, layer.id_user(), format!("{layer}-your-drawing"));
+            if *layer == Layer::Wire {
+                page.add_layer_cell(
+                    self.wire_show_intersection,
+                    layer.id_shape(true),
+                    format!("{layer}-intersection"),
+                );
+            }
+            page.add_layer_cell(
+                self.layer_style(layer).shape_sch_visible,
+                layer.id_shape(false),
+                format!("{layer}-shape"),
+            );
+            page.add_layer_cell(
+                self.layer_style(layer).label_sch_visible,
+                layer.id_label(),
+                format!("{layer}-label"),
+            );
+        }
+        page.add_layer_cell(
+            true,
+            "layer-top-your-drawing".to_string(),
+            "top-your-drawing".to_string(),
+        );
+        Ok(())
     }
 }
