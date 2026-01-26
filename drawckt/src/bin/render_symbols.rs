@@ -1,6 +1,6 @@
+use drawckt::DrawcktResult;
 use drawckt::renderer::Renderer;
 use drawckt::schematic::Schematic;
-use drawckt::DrawcktResult;
 use env_logger::{Builder, Env};
 use log::warn;
 use std::fs;

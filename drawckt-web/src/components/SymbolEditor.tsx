@@ -189,7 +189,12 @@ const SymbolEditor: React.FC<SymbolEditorProps> = ({ lib, cell, content, onSave,
     <div className="symbol-editor-overlay">
       <div className="symbol-editor-container">
         <div className="symbol-editor-header">
-          <h3>Edit: {lib}/{cell}</h3>
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
+            <h3>Edit: {lib}/{cell}</h3>
+            <p style={{ fontSize: '0.85em', color: '#666', margin: '4px 0 0 0', textAlign: 'left' }}>
+              Export PDF is not supported, use the "Open in Draw.io" button to export.
+            </p>
+          </div>
           <button className="symbol-editor-close-btn" onClick={onClose}>
             ×
           </button>

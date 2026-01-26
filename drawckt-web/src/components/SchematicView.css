@@ -182,8 +182,8 @@
 }
 
 .schematic-open-drawio-btn {
-  background-color: #6c757d;
-  color: white;
+  background-color: #ffc107;
+  color: #212529;
   border: none;
   border-radius: 4px;
   padding: 2px 8px;
@@ -196,11 +196,7 @@
 }
 
 .schematic-open-drawio-btn:hover {
-  background-color: #5a6268;
-}
-
-.schematic-open-drawio-btn:active {
-  background-color: #545b62;
+  background-color: #ffc107c9;
 }
 
 /* Export button in schematic actions - smaller size to match other buttons */
@@ -217,15 +213,4 @@
   flex-shrink: 0;
   min-width: 50px;
   width: auto;
-}
-
-.schematic-actions .export-btn.enabled {
-  opacity: 1;
-  cursor: pointer;
-  background-color: #ffc107;
-  color: #212529;
-}
-
-.schematic-actions .export-btn.enabled:hover {
-  background-color: #ffc107c9;
 }

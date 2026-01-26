@@ -137,11 +137,23 @@ export const wasmAPI = {
     }
   },
 
-  async getSchematicContent(): Promise<string> {
+  async getSchematicContent(): Promise<{ content: string; lib: string; cell: string }> {
     await initWasm();
     try {
       const result = wasm.get_schematic_content();
-      return result as unknown as string;
+      // serde_wasm_bindgen::to_value returns a JavaScript object or Map
+      // Convert Map to plain object if needed
+      let schematicData: { content: string; lib: string; cell: string };
+      if (result instanceof Map) {
+        schematicData = {
+          content: result.get('content') ?? '',
+          lib: result.get('lib') ?? '',
+          cell: result.get('cell') ?? '',
+        };
+      } else {
+        schematicData = result as unknown as { content: string; lib: string; cell: string };
+      }
+      return schematicData;
     } catch (error) {
       throw new Error(`Failed to get schematic content: ${error}`);
     }

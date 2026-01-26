@@ -4,7 +4,7 @@ use drawckt::renderer::{Renderer, SymbolContexts};
 use drawckt::schematic::{DesignId, LayerStyles, Schematic};
 use indexmap::{IndexMap, IndexSet};
 use serde::{Deserialize, Serialize};
-use std::borrow::Cow;
+use std::borrow::{Borrow, Cow};
 use std::collections::HashMap;
 use std::io::{Read, Write};
 use std::iter::once;
@@ -27,30 +27,21 @@ pub fn init() {
     console_log::init_with_level(log::Level::Info).expect("Failed to initialize logger");
 }
 
-// WASM-compatible error type
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct WasmError {
-    pub message: String,
-}
-
-impl From<drawckt::DrawcktError> for WasmError {
-    fn from(err: drawckt::DrawcktError) -> Self {
-        WasmError {
-            message: err.to_string(),
-        }
-    }
-}
-
 // State management - store data in WASM
 static APP_STATE: Mutex<Option<AppState>> = Mutex::new(None);
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AppState {
-    pub schematic: Option<Schematic>,
+    pub schematic: Option<SchematicState>,
     pub styles: StylesState,
     pub symbols: Vec<SymbolData>,
-    pub schematic_content: Option<HistoryContent>,
-    pub schematic_filename: Option<String>, // Original filename without extension
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SchematicState {
+    pub schematic: Schematic,
+    pub history: HistoryContent,
+    pub filename: String, // Original filename without extension
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -63,7 +54,7 @@ pub struct StylesState {
 impl StylesState {
     pub fn new() -> Self {
         let all = init_styles();
-        let current_name = "virtuoso".to_string();
+        let current_name = "virtuoso".to_owned();
         Self {
             current: all[&current_name].clone(),
             current_name,
@@ -124,7 +115,7 @@ impl HistoryContent {
             self.current_idx -= 1;
             Ok(())
         } else {
-            Err("No history to undo".to_string())
+            Err("No history to undo".to_owned())
         }
     }
 
@@ -133,7 +124,7 @@ impl HistoryContent {
             self.current_idx += 1;
             Ok(())
         } else {
-            Err("No history to redo".to_string())
+            Err("No history to redo".to_owned())
         }
     }
 
@@ -150,7 +141,7 @@ impl HistoryContent {
     }
 
     // Helper function to create history zip file
-    pub fn hist_zip(&self, base_name: &str) -> Result<Vec<u8>, JsValue> {
+    pub fn hist_zip(&self, base_name: &str) -> Result<Vec<u8>, AppError> {
         let mut hist_zip_data = Vec::new();
         {
             let mut hist_zip = ZipWriter::new(std::io::Cursor::new(&mut hist_zip_data));
@@ -168,29 +159,19 @@ impl HistoryContent {
                     format!("{}.{}.drawio", base_name, file_idx)
                 };
 
-                hist_zip.start_file(&file_name, options).map_err(|e| {
-                    JsValue::from_str(&format!(
-                        "Failed to add {} to history ZIP: {}",
-                        file_name, e
-                    ))
-                })?;
-                hist_zip.write_all(content.as_bytes()).map_err(|e| {
-                    JsValue::from_str(&format!("Failed to write {}: {}", file_name, e))
-                })?;
+                hist_zip.start_file(&file_name, options)?;
+                hist_zip.write_all(content.as_bytes())?;
             }
 
-            hist_zip
-                .finish()
-                .map_err(|e| JsValue::from_str(&format!("Failed to finish history ZIP: {}", e)))?;
+            hist_zip.finish()?;
         }
         Ok(hist_zip_data)
     }
 
     // Restore history from a history zip file
-    pub fn from_hist_zip(hist_zip_data: &[u8], base_name: &str) -> Result<Self, JsValue> {
+    pub fn from_hist_zip(hist_zip_data: &[u8], base_name: &str) -> Result<Self, AppError> {
         let cursor = std::io::Cursor::new(hist_zip_data);
-        let mut archive = ZipArchive::new(cursor)
-            .map_err(|e| JsValue::from_str(&format!("Failed to open history ZIP: {}", e)))?;
+        let mut archive = ZipArchive::new(cursor)?;
 
         let mut hist_content = Vec::new();
         let mut current_idx = 0;
@@ -198,13 +179,8 @@ impl HistoryContent {
         // Collect all files and sort by index
         let mut entries: Vec<(usize, String, bool)> = Vec::new();
         for i in 0..archive.len() {
-            let file = archive.by_index(i).map_err(|e| {
-                JsValue::from_str(&format!(
-                    "Failed to read file {} from history ZIP: {}",
-                    i, e
-                ))
-            })?;
-            let name = file.name().to_string();
+            let file = archive.by_index(i)?;
+            let name = file.name().to_owned();
 
             // Parse filename to extract index and check if it's current
             if name.starts_with(&format!("{}.", base_name)) && name.ends_with(".drawio") {
@@ -233,13 +209,9 @@ impl HistoryContent {
 
         // Read files in order
         for (file_idx, name, is_current) in entries {
-            let mut file = archive.by_name(&name).map_err(|e| {
-                JsValue::from_str(&format!("Failed to read {} from history ZIP: {}", name, e))
-            })?;
+            let mut file = archive.by_name(&name)?;
             let mut content = String::new();
-            file.read_to_string(&mut content).map_err(|e| {
-                JsValue::from_str(&format!("Failed to read content from {}: {}", name, e))
-            })?;
+            file.read_to_string(&mut content)?;
 
             hist_content.push(content);
 
@@ -250,7 +222,9 @@ impl HistoryContent {
         }
 
         if hist_content.is_empty() {
-            return Err(JsValue::from_str("History ZIP contains no valid files"));
+            return Err(AppError::Message(
+                "History ZIP contains no valid files".into(),
+            ));
         }
 
         Ok(Self {
@@ -260,31 +234,134 @@ impl HistoryContent {
     }
 }
 
+#[derive(Debug, thiserror::Error)]
+pub enum AppError {
+    #[error("Drawckt error: {0}")]
+    Ckt(#[from] drawckt::DrawcktError),
+    #[error("JSON parse error: {0}")]
+    SerdeJson(#[from] serde_json::Error),
+    #[error("WASM bindgen error: {0}")]
+    SerdeWasmBindgen(#[from] serde_wasm_bindgen::Error),
+    #[error("Base64 decode error: {0}")]
+    Base64Decode(#[from] base64::DecodeError),
+    #[error("ZIP error: {0}")]
+    Zip(#[from] zip::result::ZipError),
+    #[error("IO error: {0}")]
+    Io(#[from] std::io::Error),
+    #[error("UTF-8 decode error: {0}")]
+    Utf8(#[from] std::string::FromUtf8Error),
+    #[error("{0}")]
+    Message(Cow<'static, str>),
+}
+
+// Manually implement the conversion
+impl From<AppError> for JsValue {
+    fn from(err: AppError) -> Self {
+        JsValue::from_str(&err.to_string())
+    }
+}
+
+// Response types for better performance (avoiding serde_json::json! intermediate step)
+// Using references and Cow<str> to avoid unnecessary clones
+#[derive(Serialize)]
+struct SuccessResponse {
+    success: bool,
+}
+
+#[derive(Serialize)]
+struct SuccessWithMessageResponse<'a> {
+    success: bool,
+    #[serde(borrow)]
+    message: Cow<'a, str>,
+}
+
+#[derive(Serialize)]
+struct SuccessWithDataResponse {
+    success: bool,
+    symbol_count: usize,
+    schematic_rendered: bool,
+}
+
+#[derive(Serialize)]
+struct SuccessWithRestoredResponse {
+    success: bool,
+    symbol_count: usize,
+    schematic_restored: bool,
+}
+
+#[derive(Serialize)]
+struct ContentResponse<'a> {
+    #[serde(borrow)]
+    content: &'a str,
+    #[serde(borrow)]
+    lib: &'a str,
+    #[serde(borrow)]
+    cell: &'a str,
+}
+
+#[derive(Serialize)]
+struct SchematicInfoResponse {
+    current_idx: usize,
+    hist_len: usize,
+    can_undo: bool,
+    can_redo: bool,
+}
+
+#[derive(Serialize)]
+struct SymbolInfoResponse<'a> {
+    #[serde(borrow)]
+    lib: &'a str,
+    #[serde(borrow)]
+    cell: &'a str,
+    current_idx: usize,
+    hist_len: usize,
+    can_undo: bool,
+    can_redo: bool,
+}
+
+#[derive(Serialize)]
+struct ExportResponse {
+    success: bool,
+    filename: String, // format!() creates owned String
+    data: String,     // base64 encoding creates owned String
+}
+
 impl AppState {
     fn new() -> Self {
         Self {
             schematic: None,
             styles: StylesState::new(),
             symbols: Vec::default(),
-            schematic_content: None,
-            schematic_filename: None,
         }
     }
 
-    fn get_state() -> AppState {
+    /// Execute a closure with read-only access to the state
+    /// This avoids cloning the entire state
+    fn with_state<F, R>(f: F) -> R
+    where
+        F: FnOnce(&AppState) -> R,
+    {
         let mut state = APP_STATE.lock().unwrap();
         if state.is_none() {
             *state = Some(AppState::new());
         }
-        state.as_ref().unwrap().clone()
+        f(state.as_ref().unwrap())
     }
 
-    fn set_state(new_state: AppState) {
+    /// Execute a closure with mutable access to the state
+    /// This avoids cloning the entire state
+    fn with_state_mut<F, R>(f: F) -> R
+    where
+        F: FnOnce(&mut AppState) -> R,
+    {
         let mut state = APP_STATE.lock().unwrap();
-        *state = Some(new_state);
+        if state.is_none() {
+            *state = Some(AppState::new());
+        }
+        f(state.as_mut().unwrap())
     }
 
-    fn symbol_contents<'a>(&'a self) -> Result<SymbolContexts<'a>, JsValue> {
+    fn symbol_contents<'a>(&'a self) -> Result<SymbolContexts<'a>, AppError> {
         Ok(SymbolContexts(
             self.symbols
                 .iter()
@@ -295,17 +372,19 @@ impl AppState {
                             .history
                             .get_current()
                             .map(|content| content.as_str().into())
-                            .ok_or_else(|| JsValue::from_str("Symbol content not available"))?,
+                            .ok_or_else(|| {
+                                AppError::Message("Symbol content not available".into())
+                            })?,
                     ))
                 })
-                .collect::<Result<_, JsValue>>()?,
+                .collect::<Result<_, AppError>>()?,
         ))
     }
 }
 
 // Main API functions
 #[wasm_bindgen]
-pub fn process_schematic_json(json_str: &str) -> Result<JsValue, JsValue> {
+pub fn process_schematic_json(json_str: &str) -> Result<JsValue, AppError> {
     process_schematic_json_with_filename(json_str, None)
 }
 
@@ -313,109 +392,96 @@ pub fn process_schematic_json(json_str: &str) -> Result<JsValue, JsValue> {
 pub fn process_schematic_json_with_filename(
     json_str: &str,
     filename: Option<String>,
-) -> Result<JsValue, JsValue> {
+) -> Result<JsValue, AppError> {
     log::info!("Processing schematic JSON");
 
-    let schematic: Schematic = serde_json::from_str(json_str)
-        .map_err(|e| JsValue::from_str(&format!("Failed to parse JSON: {}", e)))?;
+    let schematic: Schematic = serde_json::from_str(json_str)?;
 
-    let mut state = AppState::get_state();
+    let symbol_count = AppState::with_state_mut(|state| -> Result<usize, AppError> {
+        // Extract filename without extension
+        let filename_without_ext = if let Some(ref fname) = filename {
+            fname.strip_suffix(".json").unwrap_or(fname).to_owned()
+        } else {
+            // Use design name as default
+            format!("{}_{}", schematic.design.lib, schematic.design.cell)
+        };
 
-    // Extract filename without extension
-    if let Some(ref fname) = filename {
-        let filename_without_ext = fname.strip_suffix(".json").unwrap_or(fname).to_string();
-        state.schematic_filename = Some(filename_without_ext);
-    } else {
-        // Use design name as default
-        state.schematic_filename = Some(format!(
-            "{}_{}",
-            schematic.design.lib, schematic.design.cell
-        ));
-    }
+        // Render symbols
+        log::info!("Rendering symbols");
+        let renderer = Renderer::new(&schematic, state.styles.get_current_style());
 
-    // Render symbols
-    log::info!("Rendering symbols");
-    let renderer = Renderer::new(&schematic, state.styles.get_current_style());
+        let symbol_contexts = renderer.render_symbols_file().map_err(AppError::Ckt)?;
 
-    let symbol_contexts = renderer
-        .render_symbols_file()
-        .map_err(|e| JsValue::from_str(&format!("Failed to render symbols: {}", e)))?;
+        // Render schematic
+        log::info!("Rendering schematic");
+        let schematic_content = renderer
+            .render_schematic_file(&symbol_contexts)
+            .map_err(AppError::Ckt)?;
 
-    // Render schematic
-    log::info!("Rendering schematic");
-    let schematic_content = renderer
-        .render_schematic_file(&symbol_contexts)
-        .map_err(|e| JsValue::from_str(&format!("Failed to render schematic: {}", e)))?;
+        // Convert SymbolContexts to serializable format
+        state.symbols = symbol_contexts
+            .0
+            .into_iter()
+            .filter_map(|(symbol_id, content)| {
+                // Skip invalid symbols (empty lib or cell)
+                if symbol_id.lib.is_empty() || symbol_id.cell.is_empty() {
+                    log::warn!("Skipping symbol with empty lib or cell: {:?}", symbol_id);
+                    None
+                } else {
+                    Some(SymbolData {
+                        id: symbol_id.owned(),
+                        history: HistoryContent::new(content.into_owned()),
+                    })
+                }
+            })
+            .collect();
+        state.schematic = Some(SchematicState {
+            schematic,
+            history: HistoryContent::new(schematic_content),
+            filename: filename_without_ext,
+        });
 
-    // Convert SymbolContexts to serializable format
-    state.symbols = symbol_contexts
-        .0
-        .into_iter()
-        .filter_map(|(symbol_id, content)| {
-            // Skip invalid symbols (empty lib or cell)
-            if symbol_id.lib.is_empty() || symbol_id.cell.is_empty() {
-                log::warn!("Skipping symbol with empty lib or cell: {:?}", symbol_id);
-                None
-            } else {
-                Some(SymbolData {
-                    id: symbol_id.owned(),
-                    history: HistoryContent::new(content.into_owned()),
-                })
-            }
-        })
-        .collect();
-    state.schematic = Some(schematic);
-    state.schematic_content = Some(HistoryContent::new(schematic_content));
+        Ok(state.symbols.len())
+    })?;
 
-    let symbol_count = state.symbols.len();
-    AppState::set_state(state);
-
-    let result = serde_wasm_bindgen::to_value(&serde_json::json!({
-        "success": true,
-        "symbol_count": symbol_count,
-        "schematic_rendered": true,
-    }))
-    .map_err(|e| JsValue::from_str(&format!("Serialization error: {}", e)))?;
+    let result = serde_wasm_bindgen::to_value(&SuccessWithDataResponse {
+        success: true,
+        symbol_count,
+        schematic_rendered: true,
+    })?;
 
     log::debug!("Schematic processing complete");
     Ok(result)
 }
 
 #[wasm_bindgen]
-pub fn process_schematic_zip(base64_zip: &str) -> Result<JsValue, JsValue> {
+pub fn process_schematic_zip(base64_zip: &str) -> Result<JsValue, AppError> {
     process_schematic_zip_with_filename(base64_zip, None)
 }
 
 /// Extract ZIP archive and return file contents
 fn extract_zip_contents(
     base64_zip: &str,
-) -> Result<(HashMap<String, Vec<u8>>, Option<String>), JsValue> {
+) -> Result<(HashMap<String, Vec<u8>>, Option<String>), AppError> {
     log::info!("Processing schematic ZIP");
     // Decode base64
-    let zip_data = general_purpose::STANDARD
-        .decode(base64_zip)
-        .map_err(|e| JsValue::from_str(&format!("Failed to decode base64 ZIP: {}", e)))?;
+    let zip_data = general_purpose::STANDARD.decode(base64_zip)?;
 
     // Open ZIP archive
     let cursor = std::io::Cursor::new(zip_data);
-    let mut archive = ZipArchive::new(cursor)
-        .map_err(|e| JsValue::from_str(&format!("Failed to open ZIP archive: {}", e)))?;
+    let mut archive = ZipArchive::new(cursor)?;
 
     // Read all files into memory first to avoid multiple borrows
     let file_contents: HashMap<String, Vec<u8>> = (0..archive.len())
         .into_iter()
         .map(|i| {
-            let mut file = archive.by_index(i).map_err(|e| {
-                JsValue::from_str(&format!("Failed to read file {} from ZIP: {}", i, e))
-            })?;
-            let name = file.name().to_string();
+            let mut file = archive.by_index(i)?;
+            let name = file.name().to_owned();
             let mut content = Vec::new();
-            file.read_to_end(&mut content).map_err(|e| {
-                JsValue::from_str(&format!("Failed to read content from {}: {}", name, e))
-            })?;
+            file.read_to_end(&mut content)?;
             Ok((name, content))
         })
-        .collect::<Result<HashMap<String, Vec<u8>>, JsValue>>()?;
+        .collect::<Result<HashMap<String, Vec<u8>>, AppError>>()?;
     let base_path = detect_base_path(&file_contents);
     log::info!(
         "Detected base path: '{}'",
@@ -462,7 +528,7 @@ fn detect_base_path(file_contents: &std::collections::HashMap<String, Vec<u8>>) 
             for root_file in &root_files {
                 let path_in_dir = format!("{}{}", potential_base, root_file);
                 if file_contents.contains_key(&path_in_dir) {
-                    return Some(potential_base.to_string());
+                    return Some(potential_base.to_owned());
                 }
             }
         }
@@ -495,7 +561,7 @@ fn find_file(
 pub fn process_schematic_zip_with_filename(
     base64_zip: &str,
     filename: Option<String>,
-) -> Result<JsValue, JsValue> {
+) -> Result<JsValue, AppError> {
     let (mut file_contents, base_path) = extract_zip_contents(base64_zip)?;
     let mut state = AppState::new();
 
@@ -526,11 +592,9 @@ pub fn process_schematic_zip_with_filename(
             .and_then(|s| s.strip_suffix(".json"))
         {
             if let Some(content) = find_file(&mut file_contents, &base_path, name) {
-                let style_json = String::from_utf8(content)
-                    .map_err(|e| JsValue::from_str(&format!("Failed to decode {}: {}", name, e)))?;
-                let layer_styles: LayerStyles = serde_json::from_str(&style_json)
-                    .map_err(|e| JsValue::from_str(&format!("Failed to parse {}: {}", name, e)))?;
-                all_styles.insert(name_without_ext.to_string(), layer_styles);
+                let style_json = String::from_utf8(content)?;
+                let layer_styles: LayerStyles = serde_json::from_str(&style_json)?;
+                all_styles.insert(name_without_ext.to_owned(), layer_styles);
             }
         }
     }
@@ -547,11 +611,9 @@ pub fn process_schematic_zip_with_filename(
             .and_then(|s| s.strip_suffix(".json"))
         {
             if let Some(content) = find_file(&mut file_contents, &base_path, &name) {
-                let style_json = String::from_utf8(content)
-                    .map_err(|e| JsValue::from_str(&format!("Failed to decode {}: {}", name, e)))?;
-                let layer_styles: LayerStyles = serde_json::from_str(&style_json)
-                    .map_err(|e| JsValue::from_str(&format!("Failed to parse {}: {}", name, e)))?;
-                let current_name = name_without_ext.to_string();
+                let style_json = String::from_utf8(content)?;
+                let layer_styles: LayerStyles = serde_json::from_str(&style_json)?;
+                let current_name = name_without_ext.to_owned();
                 styles_state.current = layer_styles.clone();
                 styles_state.current_name = current_name.clone();
                 // Also add to all if not present
@@ -565,13 +627,11 @@ pub fn process_schematic_zip_with_filename(
     // Fallback: if no styles found, try old layers.json format
     if styles_state.all.is_empty() {
         if let Some(layers_data) = find_file(&mut file_contents, &base_path, "layers.json") {
-            let layers_json = String::from_utf8(layers_data)
-                .map_err(|e| JsValue::from_str(&format!("Failed to decode layers.json: {}", e)))?;
-            let layer_styles: LayerStyles = serde_json::from_str(&layers_json)
-                .map_err(|e| JsValue::from_str(&format!("Failed to parse layers.json: {}", e)))?;
+            let layers_json = String::from_utf8(layers_data)?;
+            let layer_styles: LayerStyles = serde_json::from_str(&layers_json)?;
             styles_state.current = layer_styles.clone();
-            styles_state.current_name = "custom".to_string();
-            styles_state.all.insert("custom".to_string(), layer_styles);
+            styles_state.current_name = "custom".to_owned();
+            styles_state.all.insert("custom".to_owned(), layer_styles);
             log::info!("Restored layer styles from old layers.json format");
         }
     } else {
@@ -582,40 +642,40 @@ pub fn process_schematic_zip_with_filename(
 
     // Read schematic.json
     let schematic_data = find_file(&mut file_contents, &base_path, "schematic.json")
-        .ok_or_else(|| JsValue::from_str("Failed to find schematic.json in ZIP"))?;
-    let schematic_json = String::from_utf8(schematic_data)
-        .map_err(|e| JsValue::from_str(&format!("Failed to decode schematic.json: {}", e)))?;
-    let schematic: Schematic = serde_json::from_str(&schematic_json)
-        .map_err(|e| JsValue::from_str(&format!("Failed to parse schematic.json: {}", e)))?;
+        .ok_or_else(|| AppError::Message("Failed to find schematic.json in ZIP".into()))?;
+    let schematic_json = String::from_utf8(schematic_data)?;
+    let schematic: Schematic = serde_json::from_str(&schematic_json)?;
 
     // Extract filename
-    if let Some(ref fname) = filename {
-        let filename_without_ext = fname
+    let filename_without_ext = if let Some(ref fname) = filename {
+        fname
             .strip_suffix(".zip")
             .or_else(|| fname.strip_suffix(".json"))
             .unwrap_or(fname)
-            .to_string();
-        state.schematic_filename = Some(filename_without_ext);
+            .to_owned()
     } else {
-        state.schematic_filename = Some(format!(
-            "{}_{}",
-            schematic.design.lib, schematic.design.cell
-        ));
-    }
+        format!("{}_{}", schematic.design.lib, schematic.design.cell)
+    };
 
     // Read schematic.hist.zip if present
-    if let Some(hist_zip_data) = find_file(&mut file_contents, &base_path, "schematic.hist.zip") {
-        state.schematic_content = Some(HistoryContent::from_hist_zip(&hist_zip_data, "schematic")?);
+    let schematic_history = if let Some(hist_zip_data) =
+        find_file(&mut file_contents, &base_path, "schematic.hist.zip")
+    {
+        let history = HistoryContent::from_hist_zip(&hist_zip_data, "schematic")?;
         log::info!("Restored schematic history from ZIP");
+        history
     } else if let Some(drawio_content) =
         find_file(&mut file_contents, &base_path, "schematic.drawio")
     {
         // Fallback: read schematic.drawio if hist.zip is not available
-        let drawio_str = String::from_utf8(drawio_content)
-            .map_err(|e| JsValue::from_str(&format!("Failed to decode schematic.drawio: {}", e)))?;
-        state.schematic_content = Some(HistoryContent::new(drawio_str));
+        let drawio_str = String::from_utf8(drawio_content)?;
         log::info!("Restored schematic from schematic.drawio (no history)");
-    }
+        HistoryContent::new(drawio_str)
+    } else {
+        return Err(AppError::Message(
+            "No schematic content found in ZIP".into(),
+        ));
+    };
 
     state.symbols = schematic
         .symbols
@@ -628,11 +688,9 @@ pub fn process_schematic_zip_with_filename(
             let symbol_path = format!("symbols/{}/{}.drawio", lib, cell);
             let symbol_content = find_file(&mut file_contents, &base_path, &symbol_path)
                 .ok_or_else(|| {
-                    JsValue::from_str(&format!("Failed to find {} in ZIP", symbol_path))
+                    AppError::Message(format!("Failed to find {} in ZIP", symbol_path).into())
                 })?;
-            let symbol_content_str = String::from_utf8(symbol_content).map_err(|e| {
-                JsValue::from_str(&format!("Failed to decode {}: {}", symbol_path, e))
-            })?;
+            let symbol_content_str = String::from_utf8(symbol_content)?;
             // Read symbol history zip if present
             let hist_zip_path = format!("symbols/{}/{}.hist.zip", lib, cell);
             let history = if let Some(hist_zip_data) =
@@ -648,111 +706,128 @@ pub fn process_schematic_zip_with_filename(
                 history,
             })
         })
-        .collect::<Result<Vec<SymbolData>, JsValue>>()?;
-    state.schematic = Some(schematic);
+        .collect::<Result<Vec<SymbolData>, AppError>>()?;
+    state.schematic = Some(SchematicState {
+        schematic,
+        history: schematic_history,
+        filename: filename_without_ext,
+    });
 
-    let result = serde_wasm_bindgen::to_value(&serde_json::json!({
-        "success": true,
-        "symbol_count": state.symbols.len(),
-        "schematic_restored": true,
-    }))
-    .map_err(|e| JsValue::from_str(&format!("Serialization error: {}", e)))?;
-    AppState::set_state(state);
+    let symbol_count = state.symbols.len();
+    AppState::with_state_mut(|s| *s = state);
+
+    let result = serde_wasm_bindgen::to_value(&SuccessWithRestoredResponse {
+        success: true,
+        symbol_count,
+        schematic_restored: true,
+    })?;
     log::debug!("Schematic ZIP processing complete");
     Ok(result)
 }
 
 #[wasm_bindgen]
-pub fn get_symbol_content(lib: &str, cell: &str) -> Result<JsValue, JsValue> {
+pub fn get_symbol_content(lib: &str, cell: &str) -> Result<JsValue, AppError> {
     log::debug!("Getting symbol content: {}/{}", lib, cell);
 
-    let state = AppState::get_state();
-
-    for symbol in &state.symbols {
-        if symbol.id.lib == lib && symbol.id.cell == cell {
-            if let Some(content) = symbol.history.get_current() {
-                return Ok(JsValue::from_str(content));
+    AppState::with_state(|state| -> Result<JsValue, AppError> {
+        for symbol in &state.symbols {
+            if symbol.id.lib == lib && symbol.id.cell == cell {
+                if let Some(content) = symbol.history.get_current() {
+                    return Ok(JsValue::from_str(content));
+                }
             }
         }
-    }
+        Err(AppError::Message(
+            format!("Symbol {lib}/{cell} not found").into(),
+        ))
+    })
+}
 
-    Err(JsValue::from_str(&format!(
-        "Symbol {}/{} not found",
-        lib, cell
-    )))
+// Internal helper to get schematic content as string (for viewer)
+
+fn get_schematic_content_string() -> Result<JsValue, AppError> {
+    AppState::with_state(|state| {
+        if let Some(schematic_state) = &state.schematic
+            && let Some(content) = schematic_state.history.get_current()
+        {
+            Ok(JsValue::from_str(content))
+        } else {
+            Err(AppError::Message("Schematic content not available".into()))
+        }
+    })
 }
 
 #[wasm_bindgen]
-pub fn get_schematic_content() -> Result<JsValue, JsValue> {
+pub fn get_schematic_content() -> Result<JsValue, AppError> {
     log::debug!("Getting schematic content");
-
-    let state = AppState::get_state();
-
-    match &state.schematic_content {
-        Some(history) => {
-            if let Some(content) = history.get_current() {
-                Ok(JsValue::from_str(content))
-            } else {
-                Err(JsValue::from_str("Schematic content not available"))
-            }
+    AppState::with_state(|state| -> Result<JsValue, AppError> {
+        if let Some(schematic_state) = &state.schematic
+            && let Some(content) = schematic_state.history.get_current()
+        {
+            let lib: &str = &schematic_state.schematic.design.lib;
+            let cell: &str = &schematic_state.schematic.design.cell;
+            serde_wasm_bindgen::to_value(&ContentResponse { content, lib, cell })
+                .map_err(AppError::SerdeWasmBindgen)
+        } else {
+            Err(AppError::Message("Schematic content not available".into()))
         }
-        None => Err(JsValue::from_str("Schematic not rendered yet")),
-    }
+    })
 }
 
 #[wasm_bindgen]
-pub fn get_all_symbols() -> Result<JsValue, JsValue> {
+pub fn get_all_symbols() -> Result<JsValue, AppError> {
     log::debug!("Getting all symbols");
 
-    let state = AppState::get_state();
-
-    // Filter out invalid symbols and convert to SymbolInfo structs
-    let symbols: Vec<DesignId<'static>> = state
-        .symbols
-        .iter()
-        .filter(|s| !s.id.lib.is_empty() && !s.id.cell.is_empty())
-        .map(|s| s.id.owned())
-        .collect();
-
-    log::debug!("Returning {} symbols", symbols.len());
-    serde_wasm_bindgen::to_value(&symbols)
-        .map_err(|e| JsValue::from_str(&format!("Serialization error: {}", e)))
+    AppState::with_state(|state| -> Result<JsValue, AppError> {
+        // Filter out invalid symbols and convert to SymbolInfo structs
+        let symbols: Vec<DesignId<'static>> = state
+            .symbols
+            .iter()
+            .filter(|s| !s.id.lib.is_empty() && !s.id.cell.is_empty())
+            .map(|s| s.id.owned())
+            .collect();
+        log::debug!("Returning {} symbols", symbols.len());
+        Ok(serde_wasm_bindgen::to_value(&symbols)?)
+    })
 }
 
 #[wasm_bindgen]
-pub fn update_layer_styles(styles_json: &str) -> Result<JsValue, JsValue> {
+pub fn update_layer_styles(styles_json: &str) -> Result<JsValue, AppError> {
     log::debug!("Updating layer styles");
 
-    let new_styles: LayerStyles = serde_json::from_str(styles_json)
-        .map_err(|e| JsValue::from_str(&format!("Failed to parse styles JSON: {}", e)))?;
+    let new_styles: LayerStyles = serde_json::from_str(styles_json)?;
 
-    let mut state = AppState::get_state();
-    state.apply_style_update(&new_styles)?;
-    state.styles.current = new_styles;
-    AppState::set_state(state);
+    AppState::with_state_mut(|state| -> Result<(), AppError> {
+        state.apply_style_update(&new_styles)?;
+        state.styles.current = new_styles;
+        Ok(())
+    })?;
 
-    serde_wasm_bindgen::to_value(&serde_json::json!({"success": true}))
-        .map_err(|e| JsValue::from_str(&format!("Serialization error: {}", e)))
+    Ok(serde_wasm_bindgen::to_value(&SuccessResponse {
+        success: true,
+    })?)
 }
 
 #[wasm_bindgen]
-pub fn get_layer_styles() -> Result<JsValue, JsValue> {
-    let state = AppState::get_state();
-
-    serde_wasm_bindgen::to_value(state.styles.get_current_style())
-        .map_err(|e| JsValue::from_str(&format!("Serialization error: {}", e)))
+pub fn get_layer_styles() -> Result<JsValue, AppError> {
+    AppState::with_state(|state| -> Result<JsValue, AppError> {
+        Ok(serde_wasm_bindgen::to_value(
+            state.styles.get_current_style(),
+        )?)
+    })
 }
 
 #[wasm_bindgen]
-pub fn get_current_fixed_layer_styles() -> Result<JsValue, JsValue> {
-    let state = AppState::get_state();
-
-    serde_wasm_bindgen::to_value(state.styles.get_current_fixed_style())
-        .map_err(|e| JsValue::from_str(&format!("Serialization error: {}", e)))
+pub fn get_current_fixed_layer_styles() -> Result<JsValue, AppError> {
+    AppState::with_state(|state| -> Result<JsValue, AppError> {
+        Ok(serde_wasm_bindgen::to_value(
+            state.styles.get_current_fixed_style(),
+        )?)
+    })
 }
 
 #[wasm_bindgen]
-pub fn update_symbol_content(lib: &str, cell: &str, content: String) -> Result<JsValue, JsValue> {
+pub fn update_symbol_content(lib: &str, cell: &str, content: String) -> Result<JsValue, AppError> {
     log::info!("Updating symbol content: {}/{}", lib, cell);
 
     let symbol_mapping = once(DesignId {
@@ -761,181 +836,182 @@ pub fn update_symbol_content(lib: &str, cell: &str, content: String) -> Result<J
     })
     .collect::<IndexSet<_>>();
 
-    let mut state = AppState::get_state();
-
-    let schematic_content = Renderer::update_symbol_content(
-        state
-            .schematic_content
-            .as_ref()
-            .and_then(HistoryContent::get_current)
-            .ok_or(JsValue::from_str("Schematic not rendered yet"))?,
-        &content,
-        &symbol_mapping,
-        state
+    AppState::with_state_mut(|state| -> Result<(), AppError> {
+        let schematic_state = state
             .schematic
-            .as_ref()
-            .ok_or(JsValue::from_str("Schematic not found"))?,
-        &state.styles.get_current_style(),
-    )
-    .map_err(|e| JsValue::from_str(&format!("Failed to render schematic: {}", e)))?;
-    state.update_schematic_content(schematic_content);
+            .as_mut()
+            .ok_or_else(|| AppError::Message("Schematic not found".into()))?;
+        let schematic_content = Renderer::update_symbol_content(
+            schematic_state
+                .history
+                .get_current()
+                .ok_or_else(|| AppError::Message("Schematic not rendered yet".into()))?,
+            &content,
+            &symbol_mapping,
+            &schematic_state.schematic,
+            &state.styles.get_current_style(),
+        )
+        .map_err(AppError::Ckt)?;
+        schematic_state.history.update(schematic_content);
 
-    let mut found = false;
-    for symbol in &mut state.symbols {
-        if symbol_mapping.contains(&symbol.id) {
-            symbol.history.update(content.clone());
-            found = true;
+        let mut found = false;
+        for symbol in &mut state.symbols {
+            if symbol_mapping.contains(&symbol.id) {
+                symbol.history.update(content.clone());
+                found = true;
+            }
         }
-    }
 
-    if !found {
-        return Err(JsValue::from_str(&format!(
-            "Symbol {}/{} not found",
-            lib, cell
-        )));
-    }
+        if !found {
+            return Err(AppError::Message(
+                format!("Symbol {lib}/{cell} not found").into(),
+            ));
+        }
 
-    AppState::set_state(state);
+        Ok(())
+    })?;
 
-    serde_wasm_bindgen::to_value(&serde_json::json!({
-        "success": true,
-        "message": format!("Symbol {}/{} updated", lib, cell),
-    }))
-    .map_err(|e| JsValue::from_str(&format!("Serialization error: {}", e)))
+    Ok(serde_wasm_bindgen::to_value(&SuccessWithMessageResponse {
+        success: true,
+        message: Cow::Owned(format!("Symbol {}/{} updated", lib, cell)),
+    })?)
 }
 
 #[wasm_bindgen]
-pub fn undo_symbol(lib: &str, cell: &str) -> Result<JsValue, JsValue> {
+pub fn undo_symbol(lib: &str, cell: &str) -> Result<JsValue, AppError> {
     log::info!("Undoing symbol: {}/{}", lib, cell);
 
-    let mut state = AppState::get_state();
-
-    // Find and undo the symbol
-    let mut found = false;
-    for symbol in &mut state.symbols {
-        if symbol.id.lib == lib && symbol.id.cell == cell {
-            match symbol.history.undo() {
-                Ok(_) => {
-                    found = true;
-                    break;
-                }
-                Err(e) => {
-                    return Err(JsValue::from_str(&format!(
-                        "Symbol {}/{}: {}",
-                        lib, cell, e
-                    )));
-                }
-            }
-        }
-    }
-
-    if !found {
-        return Err(JsValue::from_str(&format!(
-            "Symbol {}/{} not found",
-            lib, cell
-        )));
-    }
-
-    // Re-render symbol and schematic
-    if let Some(ref schematic) = state.schematic {
-        log::info!("Re-rendering symbol and schematic after undo");
-        let renderer = Renderer::new(&schematic, state.styles.get_current_style());
-
-        let schematic_content = renderer
-            .render_schematic_file(&state.symbol_contents()?)
-            .map_err(|e| JsValue::from_str(&format!("Failed to render schematic: {}", e)))?;
-
-        // Update schematic history
-        state.update_schematic_content(schematic_content);
-    }
-
-    AppState::set_state(state);
-
-    serde_wasm_bindgen::to_value(&serde_json::json!({
-        "success": true,
-        "message": format!("Symbol {}/{} undone", lib, cell),
-    }))
-    .map_err(|e| JsValue::from_str(&format!("Serialization error: {}", e)))
-}
-
-#[wasm_bindgen]
-pub fn redo_symbol(lib: &str, cell: &str) -> Result<JsValue, JsValue> {
-    log::info!("Redoing symbol: {}/{}", lib, cell);
-
-    let mut state = AppState::get_state();
-
-    // Find and redo the symbol
-    let mut found = false;
-    for symbol in &mut state.symbols {
-        if symbol.id.lib == lib && symbol.id.cell == cell {
-            match symbol.history.redo() {
-                Ok(_) => {
-                    found = true;
-                    break;
-                }
-                Err(e) => {
-                    return Err(JsValue::from_str(&format!(
-                        "Symbol {}/{}: {}",
-                        lib, cell, e
-                    )));
+    AppState::with_state_mut(|state| {
+        // Find and undo the symbol
+        let mut found = false;
+        for symbol in &mut state.symbols {
+            if symbol.id.lib == lib && symbol.id.cell == cell {
+                match symbol.history.undo() {
+                    Ok(_) => {
+                        found = true;
+                        break;
+                    }
+                    Err(e) => {
+                        return Err(AppError::Message(
+                            format!("Symbol {lib}/{cell}: {e}").into(),
+                        ));
+                    }
                 }
             }
         }
-    }
 
-    if !found {
-        return Err(JsValue::from_str(&format!(
-            "Symbol {}/{} not found",
-            lib, cell
-        )));
-    }
+        if !found {
+            return Err(AppError::Message(
+                format!("Symbol {lib}/{cell} not found").into(),
+            ));
+        }
 
-    // Re-render symbol and schematic
-    if let Some(ref schematic) = state.schematic {
-        log::info!("Re-rendering symbol and schematic after redo");
-        let renderer = Renderer::new(&schematic, state.styles.get_current_style());
+        // Re-render symbol and schematic
+        if let Some(ref schematic_state) = state.schematic {
+            log::info!("Re-rendering symbol and schematic after undo");
+            let symbol_contents = state.symbol_contents()?;
+            let renderer =
+                Renderer::new(&schematic_state.schematic, state.styles.get_current_style());
 
-        let schematic_content = renderer
-            .render_schematic_file(&state.symbol_contents()?)
-            .map_err(|e| JsValue::from_str(&format!("Failed to render schematic: {}", e)))?;
+            let schematic_content = renderer
+                .render_schematic_file(&symbol_contents)
+                .map_err(AppError::Ckt)?;
 
-        // Update schematic history
-        state.update_schematic_content(schematic_content);
-    }
+            // Update schematic history
+            if let Some(ref mut schematic_state) = state.schematic {
+                schematic_state.history.update(schematic_content);
+            }
+        }
 
-    AppState::set_state(state);
+        Ok(())
+    })?;
 
-    serde_wasm_bindgen::to_value(&serde_json::json!({
-        "success": true,
-        "message": format!("Symbol {}/{} redone", lib, cell),
-    }))
-    .map_err(|e| JsValue::from_str(&format!("Serialization error: {}", e)))
+    serde_wasm_bindgen::to_value(&SuccessWithMessageResponse {
+        success: true,
+        message: Cow::Owned(format!("Symbol {}/{} undone", lib, cell)),
+    })
+    .map_err(AppError::SerdeWasmBindgen)
 }
 
 #[wasm_bindgen]
-pub fn get_symbol_info(lib: &str, cell: &str) -> Result<JsValue, JsValue> {
+pub fn redo_symbol(lib: &str, cell: &str) -> Result<JsValue, AppError> {
+    log::info!("Redoing symbol: {lib}/{cell}");
+
+    AppState::with_state_mut(|state| {
+        // Find and redo the symbol
+        let mut found = false;
+        for symbol in &mut state.symbols {
+            if symbol.id.lib == lib && symbol.id.cell == cell {
+                match symbol.history.redo() {
+                    Ok(_) => {
+                        found = true;
+                        break;
+                    }
+                    Err(e) => {
+                        return Err(AppError::Message(
+                            format!("Symbol {lib}/{cell}: {e}").into(),
+                        ));
+                    }
+                }
+            }
+        }
+
+        if !found {
+            return Err(AppError::Message(
+                format!("Symbol {lib}/{cell} not found").into(),
+            ));
+        }
+
+        // Re-render symbol and schematic
+        if let Some(ref schematic_state) = state.schematic {
+            log::info!("Re-rendering symbol and schematic after redo");
+            let symbol_contents = state.symbol_contents()?;
+            let renderer =
+                Renderer::new(&schematic_state.schematic, state.styles.get_current_style());
+
+            let schematic_content = renderer
+                .render_schematic_file(&symbol_contents)
+                .map_err(AppError::Ckt)?;
+
+            // Update schematic history
+            if let Some(ref mut schematic_state) = state.schematic {
+                schematic_state.history.update(schematic_content);
+            }
+        }
+
+        Ok(())
+    })?;
+
+    serde_wasm_bindgen::to_value(&SuccessWithMessageResponse {
+        success: true,
+        message: Cow::Owned(format!("Symbol {}/{} redone", lib, cell)),
+    })
+    .map_err(AppError::SerdeWasmBindgen)
+}
+
+#[wasm_bindgen]
+pub fn get_symbol_info(lib: &str, cell: &str) -> Result<JsValue, AppError> {
     log::debug!("Getting symbol info: {}/{}", lib, cell);
 
-    let state = AppState::get_state();
-
-    for symbol in &state.symbols {
-        if symbol.id.lib == lib && symbol.id.cell == cell {
-            return serde_wasm_bindgen::to_value(&serde_json::json!({
-                "lib": symbol.id.lib,
-                "cell": symbol.id.cell,
-                "current_idx": symbol.history.current_idx,
-                "hist_len": symbol.history.hist_content.len(),
-                "can_undo": symbol.history.can_undo(),
-                "can_redo": symbol.history.can_redo(),
-            }))
-            .map_err(|e| JsValue::from_str(&format!("Serialization error: {}", e)));
+    AppState::with_state(|state| {
+        for symbol in &state.symbols {
+            if symbol.id.lib == lib && symbol.id.cell == cell {
+                return serde_wasm_bindgen::to_value(&SymbolInfoResponse {
+                    lib: symbol.id.lib.borrow(),
+                    cell: symbol.id.cell.borrow(),
+                    current_idx: symbol.history.current_idx,
+                    hist_len: symbol.history.hist_content.len(),
+                    can_undo: symbol.history.can_undo(),
+                    can_redo: symbol.history.can_redo(),
+                })
+                .map_err(AppError::SerdeWasmBindgen);
+            }
         }
-    }
 
-    Err(JsValue::from_str(&format!(
-        "Symbol {}/{} not found",
-        lib, cell
-    )))
+        Err(AppError::Message(
+            format!("Symbol {lib}/{cell} not found").into(),
+        ))
+    })
 }
 
 impl AppState {
@@ -943,39 +1019,36 @@ impl AppState {
         log::info!("Updating schematic content");
 
         // Update schematic history
-        if let Some(schematic_history) = &mut self.schematic_content {
-            schematic_history.update(content);
+        if let Some(schematic_state) = &mut self.schematic {
+            schematic_state.history.update(content);
         } else {
-            self.schematic_content = Some(HistoryContent::new(content));
+            // This shouldn't happen, but handle it gracefully
+            log::warn!("Attempted to update schematic content but no schematic is loaded");
         }
     }
 
     /// Apply style update to all symbols and schematic content
     /// This uses Renderer::update_style to efficiently update existing content
     /// instead of re-rendering from scratch
-    fn apply_style_update(&mut self, new_styles: &LayerStyles) -> Result<(), JsValue> {
+    fn apply_style_update(&mut self, new_styles: &LayerStyles) -> Result<(), AppError> {
         let old_styles = self.styles.get_current_style();
 
         // Update all symbols
         for symbol in &mut self.symbols {
             if let Some(content) = symbol.history.get_current() {
-                let new_content =
-                    Renderer::update_style(content, old_styles, new_styles).map_err(|e| {
-                        JsValue::from_str(&format!("Failed to update symbol style: {}", e))
-                    })?;
+                let new_content = Renderer::update_style(content, old_styles, new_styles)
+                    .map_err(AppError::Ckt)?;
                 symbol.history.update(new_content);
             }
         }
 
         // Update schematic content
-        if let Some(schematic) = &mut self.schematic_content
-            && let Some(content) = schematic.get_current()
+        if let Some(schematic_state) = &mut self.schematic
+            && let Some(content) = schematic_state.history.get_current()
         {
             let new_content =
-                Renderer::update_style(content, old_styles, new_styles).map_err(|e| {
-                    JsValue::from_str(&format!("Failed to update schematic style: {}", e))
-                })?;
-            schematic.update(new_content);
+                Renderer::update_style(content, old_styles, new_styles).map_err(AppError::Ckt)?;
+            schematic_state.history.update(new_content);
         }
 
         Ok(())
@@ -983,182 +1056,176 @@ impl AppState {
 }
 
 #[wasm_bindgen]
-pub fn update_schematic_content(content: String) -> Result<JsValue, JsValue> {
-    let mut state = AppState::get_state();
-    state.update_schematic_content(content);
-    AppState::set_state(state);
+pub fn update_schematic_content(content: String) -> Result<JsValue, AppError> {
+    AppState::with_state_mut(|state| {
+        state.update_schematic_content(content);
+    });
 
-    serde_wasm_bindgen::to_value(&serde_json::json!({
-        "success": true,
-        "message": "Schematic updated",
-    }))
-    .map_err(|e| JsValue::from_str(&format!("Serialization error: {}", e)))
+    Ok(serde_wasm_bindgen::to_value(&SuccessWithMessageResponse {
+        success: true,
+        message: Cow::Borrowed("Schematic updated"),
+    })?)
 }
 
 #[wasm_bindgen]
-pub fn undo_schematic() -> Result<JsValue, JsValue> {
+pub fn undo_schematic() -> Result<JsValue, AppError> {
     log::info!("Undoing schematic");
 
-    let mut state = AppState::get_state();
-
-    match state.schematic_content.as_mut() {
-        Some(history) => {
-            history
-                .undo()
-                .map_err(|e| JsValue::from_str(&format!("Failed to undo: {}", e)))?;
+    AppState::with_state_mut(|state| {
+        match state.schematic.as_mut() {
+            Some(schematic_state) => {
+                schematic_state
+                    .history
+                    .undo()
+                    .map_err(|e| AppError::Message(e.into()))?;
+            }
+            None => {
+                return Err(AppError::Message("Schematic not rendered yet".into()));
+            }
         }
-        None => {
-            return Err(JsValue::from_str("Schematic not rendered yet"));
-        }
-    }
 
-    // Content is already in history, no need to re-render
+        // Content is already in history, no need to re-render
+        Ok(())
+    })?;
 
-    AppState::set_state(state);
-
-    serde_wasm_bindgen::to_value(&serde_json::json!({
-        "success": true,
-        "message": "Schematic undone",
-    }))
-    .map_err(|e| JsValue::from_str(&format!("Serialization error: {}", e)))
+    serde_wasm_bindgen::to_value(&SuccessWithMessageResponse {
+        success: true,
+        message: Cow::Borrowed("Schematic undone"),
+    })
+    .map_err(AppError::SerdeWasmBindgen)
 }
 
 #[wasm_bindgen]
-pub fn redo_schematic() -> Result<JsValue, JsValue> {
+pub fn redo_schematic() -> Result<JsValue, AppError> {
     log::info!("Redoing schematic");
 
-    let mut state = AppState::get_state();
-
-    match state.schematic_content.as_mut() {
-        Some(history) => {
-            history
-                .redo()
-                .map_err(|e| JsValue::from_str(&format!("Failed to redo: {}", e)))?;
+    AppState::with_state_mut(|state| {
+        match state.schematic.as_mut() {
+            Some(schematic_state) => {
+                schematic_state
+                    .history
+                    .redo()
+                    .map_err(|e| AppError::Message(e.into()))?;
+            }
+            None => {
+                return Err(AppError::Message("Schematic not rendered yet".into()));
+            }
         }
-        None => {
-            return Err(JsValue::from_str("Schematic not rendered yet"));
-        }
-    }
 
-    // Content is already in history, no need to re-render
+        // Content is already in history, no need to re-render
+        Ok(())
+    })?;
 
-    AppState::set_state(state);
-
-    serde_wasm_bindgen::to_value(&serde_json::json!({
-        "success": true,
-        "message": "Schematic redone",
-    }))
-    .map_err(|e| JsValue::from_str(&format!("Serialization error: {}", e)))
+    serde_wasm_bindgen::to_value(&SuccessWithMessageResponse {
+        success: true,
+        message: Cow::Borrowed("Schematic redone"),
+    })
+    .map_err(AppError::SerdeWasmBindgen)
 }
 
 #[wasm_bindgen]
-pub fn get_schematic_info() -> Result<JsValue, JsValue> {
+pub fn get_schematic_info() -> Result<JsValue, AppError> {
     log::debug!("Getting schematic info");
 
-    let state = AppState::get_state();
-
-    match &state.schematic_content {
-        Some(history) => serde_wasm_bindgen::to_value(&serde_json::json!({
-            "current_idx": history.current_idx,
-            "hist_len": history.hist_content.len(),
-            "can_undo": history.can_undo(),
-            "can_redo": history.can_redo(),
-        }))
-        .map_err(|e| JsValue::from_str(&format!("Serialization error: {}", e))),
-        None => Err(JsValue::from_str("Schematic not rendered yet")),
-    }
+    AppState::with_state(|state| match &state.schematic {
+        Some(schematic_state) => serde_wasm_bindgen::to_value(&SchematicInfoResponse {
+            current_idx: schematic_state.history.current_idx,
+            hist_len: schematic_state.history.hist_content.len(),
+            can_undo: schematic_state.history.can_undo(),
+            can_redo: schematic_state.history.can_redo(),
+        })
+        .map_err(AppError::SerdeWasmBindgen),
+        None => Err(AppError::Message("Schematic not rendered yet".into())),
+    })
 }
 
 #[wasm_bindgen]
-pub fn get_styles_state() -> Result<JsValue, JsValue> {
-    let state = AppState::get_state();
-    serde_wasm_bindgen::to_value(&state.styles)
-        .map_err(|e| JsValue::from_str(&format!("Serialization error: {}", e)))
+pub fn get_styles_state() -> Result<JsValue, AppError> {
+    AppState::with_state(|state| {
+        serde_wasm_bindgen::to_value(&state.styles).map_err(AppError::SerdeWasmBindgen)
+    })
 }
 
 #[wasm_bindgen]
-pub fn get_all_style_names() -> Result<JsValue, JsValue> {
-    let state = AppState::get_state();
-    serde_wasm_bindgen::to_value(&state.styles.all_names())
-        .map_err(|e| JsValue::from_str(&format!("Serialization error: {}", e)))
+pub fn get_all_style_names() -> Result<JsValue, AppError> {
+    AppState::with_state(|state| {
+        serde_wasm_bindgen::to_value(&state.styles.all_names()).map_err(AppError::SerdeWasmBindgen)
+    })
 }
 
 #[wasm_bindgen]
-pub fn set_current_style(name: &str) -> Result<JsValue, JsValue> {
-    let mut state = AppState::get_state();
+pub fn set_current_style(name: &str) -> Result<JsValue, AppError> {
+    AppState::with_state_mut(|state| {
+        if !state.styles.all.contains_key(name) {
+            return Err(AppError::Message(
+                format!("Style '{name}' not found").into(),
+            ));
+        }
 
-    if !state.styles.all.contains_key(name) {
-        return Err(JsValue::from_str(&format!("Style '{}' not found", name)));
-    }
+        state.styles.fix_current();
+        let new_styles = state.styles.all[name].clone();
+        state.styles.current_name = name.to_owned();
 
-    state.styles.fix_current();
-    let new_styles = state.styles.all[name].clone();
-    state.styles.current_name = name.to_string();
+        // Apply style update using the same logic as update_layer_styles
+        state.apply_style_update(&new_styles)?;
+        state.styles.current = new_styles;
 
-    // Apply style update using the same logic as update_layer_styles
-    state.apply_style_update(&new_styles)?;
-    state.styles.current = new_styles;
+        Ok(())
+    })?;
 
-    AppState::set_state(state);
-
-    serde_wasm_bindgen::to_value(&serde_json::json!({
-        "success": true,
-    }))
-    .map_err(|e| JsValue::from_str(&format!("Serialization error: {}", e)))
+    serde_wasm_bindgen::to_value(&SuccessResponse { success: true })
+        .map_err(AppError::SerdeWasmBindgen)
 }
 
 #[wasm_bindgen]
-pub fn add_style(name: &str, styles_json: &str) -> Result<JsValue, JsValue> {
-    let styles: LayerStyles = serde_json::from_str(styles_json)
-        .map_err(|e| JsValue::from_str(&format!("Failed to parse styles JSON: {}", e)))?;
+pub fn add_style(name: &str, styles_json: &str) -> Result<JsValue, AppError> {
+    let styles: LayerStyles = serde_json::from_str(styles_json).map_err(AppError::SerdeJson)?;
 
-    let mut state = AppState::get_state();
-    state.styles.add_style(name.to_string(), styles.clone());
+    AppState::with_state_mut(|state| -> Result<(), AppError> {
+        state.styles.add_style(name.to_owned(), styles.clone());
 
-    // Apply style update using the same logic as update_layer_styles
-    state.apply_style_update(&styles)?;
-    state.styles.current = styles;
+        // Apply style update using the same logic as update_layer_styles
+        state.apply_style_update(&styles)?;
+        state.styles.current = styles;
 
-    AppState::set_state(state);
+        Ok(())
+    })?;
 
-    serde_wasm_bindgen::to_value(&serde_json::json!({
-        "success": true,
-    }))
-    .map_err(|e| JsValue::from_str(&format!("Serialization error: {}", e)))
+    Ok(serde_wasm_bindgen::to_value(&SuccessResponse {
+        success: true,
+    })?)
 }
 
 #[wasm_bindgen]
-pub fn reset_current_style() -> Result<JsValue, JsValue> {
-    let mut state = AppState::get_state();
-    let new_styles = state.styles.get_current_fixed_style().clone();
+pub fn reset_current_style() -> Result<JsValue, AppError> {
+    AppState::with_state_mut(|state| -> Result<(), AppError> {
+        let new_styles = state.styles.get_current_fixed_style().clone();
 
-    // Apply style update using the same logic as update_layer_styles
-    state.apply_style_update(&new_styles)?;
-    state.styles.current = new_styles;
+        // Apply style update using the same logic as update_layer_styles
+        state.apply_style_update(&new_styles)?;
+        state.styles.current = new_styles;
 
-    AppState::set_state(state);
+        Ok(())
+    })?;
 
-    serde_wasm_bindgen::to_value(&serde_json::json!({
-        "success": true,
-    }))
-    .map_err(|e| JsValue::from_str(&format!("Serialization error: {}", e)))
+    Ok(serde_wasm_bindgen::to_value(&SuccessResponse {
+        success: true,
+    })?)
 }
 
 #[wasm_bindgen]
-pub fn fix_current_style() -> Result<JsValue, JsValue> {
-    let mut state = AppState::get_state();
-    state.styles.fix_current();
-    AppState::set_state(state);
+pub fn fix_current_style() -> Result<JsValue, AppError> {
+    AppState::with_state_mut(|state| {
+        state.styles.fix_current();
+    });
 
-    serde_wasm_bindgen::to_value(&serde_json::json!({
-        "success": true,
-    }))
-    .map_err(|e| JsValue::from_str(&format!("Serialization error: {}", e)))
+    serde_wasm_bindgen::to_value(&SuccessResponse { success: true })
+        .map_err(AppError::SerdeWasmBindgen)
 }
 
 // Router function for embedded files
 #[wasm_bindgen]
-pub fn route_embedded(path: &str) -> Result<JsValue, JsValue> {
+pub fn route_embedded(path: &str) -> Result<JsValue, AppError> {
     log::debug!("Routing embedded path: {}", path);
 
     // Extract the embedded part from path (supports subfolder deployment)
@@ -1169,30 +1236,29 @@ pub fn route_embedded(path: &str) -> Result<JsValue, JsValue> {
     } else if path.starts_with("/embedded/") {
         path
     } else {
-        return Err(JsValue::from_str(&format!(
-            "Invalid path: no /embedded/ found in {}",
-            path
-        )));
+        return Err(AppError::Message(
+            format!("Invalid path: no /embedded/ found in {path}").into(),
+        ));
     };
 
     // Parse path: /embedded/symbols/{lib}/{cell}.drawio or /embedded/schematic.drawio
     if embedded_part == "/embedded/schematic.drawio"
         || embedded_part.starts_with("/embedded/schematic.drawio")
     {
-        return get_schematic_content();
+        return get_schematic_content_string();
     }
 
     if embedded_part.starts_with("/embedded/symbols/") {
         // Remove prefix and suffix
         let without_prefix = embedded_part
             .strip_prefix("/embedded/symbols/")
-            .ok_or_else(|| JsValue::from_str("Invalid path: missing prefix"))?;
+            .ok_or_else(|| AppError::Message("Invalid path: missing prefix".into()))?;
 
         // Remove .drawio suffix if present
         let without_suffix = if without_prefix.ends_with(".drawio") {
             without_prefix
                 .strip_suffix(".drawio")
-                .ok_or_else(|| JsValue::from_str("Invalid path: missing suffix"))?
+                .ok_or_else(|| AppError::Message("Invalid path: missing suffix".into()))?
         } else {
             without_prefix
         };
@@ -1209,167 +1275,126 @@ pub fn route_embedded(path: &str) -> Result<JsValue, JsValue> {
             return get_symbol_content(lib, cell);
         } else {
             log::warn!("Invalid path format: expected 2 parts, got {}", parts.len());
-            return Err(JsValue::from_str(&format!(
-                "Invalid path format: expected lib/cell, got {} parts",
-                parts.len()
-            )));
+            return Err(AppError::Message(
+                format!(
+                    "Invalid path format: expected lib/cell, got {} parts",
+                    parts.len()
+                )
+                .into(),
+            ));
         }
     }
 
-    Err(JsValue::from_str(&format!("Unknown path: {}", path)))
+    Err(AppError::Message(format!("Unknown path: {path}").into()))
 }
 
 #[wasm_bindgen]
-pub fn get_demo_list() -> Result<JsValue, JsValue> {
+pub fn get_demo_list() -> Result<JsValue, AppError> {
     log::debug!("Getting demo list");
 
     let demo_names: Vec<&str> = DEMO_FILES.keys().copied().collect();
 
-    serde_wasm_bindgen::to_value(&demo_names)
-        .map_err(|e| JsValue::from_str(&format!("Serialization error: {}", e)))
+    serde_wasm_bindgen::to_value(&demo_names).map_err(AppError::SerdeWasmBindgen)
 }
 
 #[wasm_bindgen]
-pub fn load_demo(name: &str) -> Result<JsValue, JsValue> {
+pub fn load_demo(name: &str) -> Result<JsValue, AppError> {
     log::debug!("Loading demo: {}", name);
-
     let content = DEMO_FILES
         .get(name)
-        .ok_or_else(|| JsValue::from_str(&format!("Demo '{}' not found", name)))?;
-
+        .ok_or_else(|| AppError::Message(format!("Demo '{name}' not found").into()))?;
     Ok(JsValue::from_str(content))
 }
 
 #[wasm_bindgen]
-pub fn export_all_files() -> Result<JsValue, JsValue> {
+pub fn export_all_files() -> Result<JsValue, AppError> {
     log::info!("Exporting all files to ZIP");
 
-    let state = AppState::get_state();
+    AppState::with_state(|state| {
+        // Check if schematic is available
+        let schematic_state = state
+            .schematic
+            .as_ref()
+            .ok_or_else(|| AppError::Message("No schematic loaded".into()))?;
 
-    // Check if schematic is available
-    let schematic = state
-        .schematic
-        .as_ref()
-        .ok_or_else(|| JsValue::from_str("No schematic loaded"))?;
+        let schematic_content = schematic_state
+            .history
+            .get_current()
+            .ok_or_else(|| AppError::Message("Schematic not rendered".into()))?;
 
-    let schematic_content = state
-        .schematic_content
-        .as_ref()
-        .and_then(|h| h.get_current())
-        .ok_or_else(|| JsValue::from_str("Schematic not rendered"))?;
+        // Get filename
+        let filename = schematic_state.filename.clone();
 
-    // Get filename
-    let filename = state
-        .schematic_filename
-        .as_ref()
-        .map(|s| s.clone())
-        .unwrap_or_else(|| format!("{}_{}", schematic.design.lib, schematic.design.cell));
+        // Create ZIP in memory
+        let mut zip_data = Vec::new();
+        {
+            let mut zip = ZipWriter::new(std::io::Cursor::new(&mut zip_data));
+            let options = FileOptions::default()
+                .compression_method(CompressionMethod::Deflated)
+                .unix_permissions(0o755);
 
-    // Create ZIP in memory
-    let mut zip_data = Vec::new();
-    {
-        let mut zip = ZipWriter::new(std::io::Cursor::new(&mut zip_data));
-        let options = FileOptions::default()
-            .compression_method(CompressionMethod::Deflated)
-            .unix_permissions(0o755);
+            // Add styles to /styles directory
+            // Save current style as /styles/{current_name}.json
+            let current_style_json =
+                serde_json::to_string_pretty(state.styles.get_current_style())?;
+            let current_style_path = format!("styles/{}.json", state.styles.current_name);
+            zip.start_file(&current_style_path, options)?;
+            zip.write_all(current_style_json.as_bytes())?;
 
-        // Add styles to /styles directory
-        // Save current style as /styles/{current_name}.json
-        let current_style_json = serde_json::to_string_pretty(state.styles.get_current_style())
-            .map_err(|e| JsValue::from_str(&format!("Failed to serialize current style: {}", e)))?;
-        let current_style_path = format!("styles/{}.json", state.styles.current_name);
-        zip.start_file(&current_style_path, options).map_err(|e| {
-            JsValue::from_str(&format!(
-                "Failed to add {} to ZIP: {}",
-                current_style_path, e
-            ))
-        })?;
-        zip.write_all(current_style_json.as_bytes()).map_err(|e| {
-            JsValue::from_str(&format!("Failed to write {}: {}", current_style_path, e))
-        })?;
-
-        // Save all styles to /styles/all/{name}.json
-        for (name, style) in &state.styles.all {
-            let style_json = serde_json::to_string_pretty(style).map_err(|e| {
-                JsValue::from_str(&format!("Failed to serialize style {}: {}", name, e))
-            })?;
-            let style_path = format!("styles/all/{}.json", name);
-            zip.start_file(&style_path, options).map_err(|e| {
-                JsValue::from_str(&format!("Failed to add {} to ZIP: {}", style_path, e))
-            })?;
-            zip.write_all(style_json.as_bytes()).map_err(|e| {
-                JsValue::from_str(&format!("Failed to write {}: {}", style_path, e))
-            })?;
-        }
-
-        // Add schematic.json
-        let schematic_json = serde_json::to_string_pretty(schematic)
-            .map_err(|e| JsValue::from_str(&format!("Failed to serialize schematic: {}", e)))?;
-        zip.start_file("schematic.json", options).map_err(|e| {
-            JsValue::from_str(&format!("Failed to add schematic.json to ZIP: {}", e))
-        })?;
-        zip.write_all(schematic_json.as_bytes())
-            .map_err(|e| JsValue::from_str(&format!("Failed to write schematic.json: {}", e)))?;
-
-        // Add schematic.drawio
-        zip.start_file("schematic.drawio", options).map_err(|e| {
-            JsValue::from_str(&format!("Failed to add schematic.drawio to ZIP: {}", e))
-        })?;
-        zip.write_all(schematic_content.as_bytes())
-            .map_err(|e| JsValue::from_str(&format!("Failed to write schematic.drawio: {}", e)))?;
-
-        // Add schematic.hist.zip
-        if let Some(schematic_history) = &state.schematic_content {
-            let hist_zip_data = schematic_history.hist_zip("schematic")?;
-            zip.start_file("schematic.hist.zip", options).map_err(|e| {
-                JsValue::from_str(&format!("Failed to add schematic.hist.zip to ZIP: {}", e))
-            })?;
-            zip.write_all(&hist_zip_data).map_err(|e| {
-                JsValue::from_str(&format!("Failed to write schematic.hist.zip: {}", e))
-            })?;
-        }
-
-        // Add symbols directory
-        for symbol_data in &state.symbols {
-            // Get current content from history
-            if let Some(content) = symbol_data.history.get_current() {
-                let symbol_path = format!(
-                    "symbols/{}/{}.drawio",
-                    symbol_data.id.lib, symbol_data.id.cell
-                );
-                zip.start_file(&symbol_path, options).map_err(|e| {
-                    JsValue::from_str(&format!("Failed to add {} to ZIP: {}", symbol_path, e))
-                })?;
-                zip.write_all(content.as_bytes()).map_err(|e| {
-                    JsValue::from_str(&format!("Failed to write {}: {}", symbol_path, e))
-                })?;
-
-                // Add symbol history zip
-                let hist_zip_data = symbol_data.history.hist_zip(&symbol_data.id.cell)?;
-                let hist_zip_path = format!(
-                    "symbols/{}/{}.hist.zip",
-                    symbol_data.id.lib, symbol_data.id.cell
-                );
-                zip.start_file(&hist_zip_path, options).map_err(|e| {
-                    JsValue::from_str(&format!("Failed to add {} to ZIP: {}", hist_zip_path, e))
-                })?;
-                zip.write_all(&hist_zip_data).map_err(|e| {
-                    JsValue::from_str(&format!("Failed to write {}: {}", hist_zip_path, e))
-                })?;
+            // Save all styles to /styles/all/{name}.json
+            for (name, style) in &state.styles.all {
+                let style_json = serde_json::to_string_pretty(style)?;
+                let style_path = format!("styles/all/{}.json", name);
+                zip.start_file(&style_path, options)?;
+                zip.write_all(style_json.as_bytes())?;
             }
+
+            // Add schematic.json
+            let schematic_json = serde_json::to_string_pretty(&schematic_state.schematic)?;
+            zip.start_file("schematic.json", options)?;
+            zip.write_all(schematic_json.as_bytes())?;
+
+            // Add schematic.drawio
+            zip.start_file("schematic.drawio", options)?;
+            zip.write_all(schematic_content.as_bytes())?;
+
+            // Add schematic.hist.zip
+            let hist_zip_data = schematic_state.history.hist_zip("schematic")?;
+            zip.start_file("schematic.hist.zip", options)?;
+            zip.write_all(&hist_zip_data)?;
+
+            // Add symbols directory
+            for symbol_data in &state.symbols {
+                // Get current content from history
+                if let Some(content) = symbol_data.history.get_current() {
+                    let symbol_path = format!(
+                        "symbols/{}/{}.drawio",
+                        symbol_data.id.lib, symbol_data.id.cell
+                    );
+                    zip.start_file(&symbol_path, options)?;
+                    zip.write_all(content.as_bytes())?;
+
+                    // Add symbol history zip
+                    let hist_zip_data = symbol_data.history.hist_zip(&symbol_data.id.cell)?;
+                    let hist_zip_path = format!(
+                        "symbols/{}/{}.hist.zip",
+                        symbol_data.id.lib, symbol_data.id.cell
+                    );
+                    zip.start_file(&hist_zip_path, options)?;
+                    zip.write_all(&hist_zip_data)?;
+                }
+            }
+
+            zip.finish()?;
         }
 
-        zip.finish()
-            .map_err(|e| JsValue::from_str(&format!("Failed to finish ZIP: {}", e)))?;
-    }
+        // Convert to base64 for JavaScript
+        let base64_zip = general_purpose::STANDARD.encode(&zip_data);
 
-    // Convert to base64 for JavaScript
-    let base64_zip = general_purpose::STANDARD.encode(&zip_data);
-
-    serde_wasm_bindgen::to_value(&serde_json::json!({
-        "success": true,
-        "filename": format!("{}.zip", filename),
-        "data": base64_zip,
-    }))
-    .map_err(|e| JsValue::from_str(&format!("Serialization error: {}", e)))
+        Ok(serde_wasm_bindgen::to_value(&ExportResponse {
+            success: true,
+            filename: format!("{}.zip", filename),
+            data: base64_zip,
+        })?)
+    })
 }

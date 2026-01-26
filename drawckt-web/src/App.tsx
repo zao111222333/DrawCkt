@@ -19,7 +19,7 @@ function App() {
   const [schematicRefreshKey, setSchematicRefreshKey] = useState(0);
   const [symbolsRefreshKey, setSymbolsRefreshKey] = useState(0);
   const [editingSymbol, setEditingSymbol] = useState<{ lib: string; cell: string; content: string } | null>(null);
-  const [editingSchematic, setEditingSchematic] = useState<{ content: string } | null>(null);
+  const [editingSchematic, setEditingSchematic] = useState<{ content: string; lib: string; cell: string } | null>(null);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   
   // Dark mode state - load from localStorage or default to true
@@ -595,8 +595,8 @@ function App() {
             isDarkMode={isDarkMode}
             onEditSchematic={async () => {
               try {
-                const content = await wasmAPI.getSchematicContent();
-                setEditingSchematic({ content });
+                const schematicData = await wasmAPI.getSchematicContent();
+                setEditingSchematic(schematicData);
               } catch (error) {
                 console.error('Failed to get schematic content:', error);
                 alert(`Failed to load schematic content: ${error}`);
@@ -646,8 +646,8 @@ function App() {
       )}
       {editingSchematic && (
         <SymbolEditor
-          lib=""
-          cell="Schematic"
+          lib={editingSchematic.lib}
+          cell={editingSchematic.cell}
           content={editingSchematic.content}
           isDarkMode={isDarkMode}
           onSave={async (_lib: string, _cell: string, newContent: string) => {
