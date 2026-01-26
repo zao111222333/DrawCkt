@@ -1,5 +1,5 @@
 ---
-source: drawckt/tests/parse_symbols_test.rs
+source: drawckt/tests/test_parse_drawio.rs
 expression: pages
 ---
 {
@@ -62,6 +62,7 @@ expression: pages
                     text_format: TextFormat {
                         font_size: None,
                         font_color: None,
+                        font_family: None,
                         justify: Justify {
                             x: Center,
                             y: Middle,
@@ -130,6 +131,7 @@ expression: pages
                         font_color: Some(
                             "#FF0000",
                         ),
+                        font_family: None,
                         justify: Justify {
                             x: Center,
                             y: Middle,
@@ -307,6 +309,7 @@ expression: pages
                         font_color: Some(
                             "#FF9900",
                         ),
+                        font_family: None,
                         justify: Justify {
                             x: Center,
                             y: Middle,
@@ -375,6 +378,7 @@ expression: pages
                         font_color: Some(
                             "#FF9900",
                         ),
+                        font_family: None,
                         justify: Justify {
                             x: Center,
                             y: Middle,
@@ -443,6 +447,7 @@ expression: pages
                         font_color: Some(
                             "#FF9900",
                         ),
+                        font_family: None,
                         justify: Justify {
                             x: Center,
                             y: Middle,
@@ -511,6 +516,7 @@ expression: pages
                         font_color: Some(
                             "#FF9900",
                         ),
+                        font_family: None,
                         justify: Justify {
                             x: Center,
                             y: Middle,
@@ -579,6 +585,7 @@ expression: pages
                         font_color: Some(
                             "#FF9900",
                         ),
+                        font_family: None,
                         justify: Justify {
                             x: Center,
                             y: Middle,
@@ -647,6 +654,7 @@ expression: pages
                         font_color: Some(
                             "#FF9900",
                         ),
+                        font_family: None,
                         justify: Justify {
                             x: Center,
                             y: Middle,
@@ -715,6 +723,7 @@ expression: pages
                         font_color: Some(
                             "#FF9900",
                         ),
+                        font_family: None,
                         justify: Justify {
                             x: Center,
                             y: Middle,
@@ -783,6 +792,7 @@ expression: pages
                         font_color: Some(
                             "#FF9900",
                         ),
+                        font_family: None,
                         justify: Justify {
                             x: Center,
                             y: Middle,
@@ -851,6 +861,7 @@ expression: pages
                         font_color: Some(
                             "#FF9900",
                         ),
+                        font_family: None,
                         justify: Justify {
                             x: Center,
                             y: Middle,
@@ -919,6 +930,7 @@ expression: pages
                         font_color: Some(
                             "#FF9900",
                         ),
+                        font_family: None,
                         justify: Justify {
                             x: Center,
                             y: Middle,
@@ -987,6 +999,7 @@ expression: pages
                         font_color: Some(
                             "#FF9900",
                         ),
+                        font_family: None,
                         justify: Justify {
                             x: Center,
                             y: Middle,
@@ -1053,6 +1066,7 @@ expression: pages
                     text_format: TextFormat {
                         font_size: None,
                         font_color: None,
+                        font_family: None,
                         justify: Justify {
                             x: Center,
                             y: Middle,
@@ -1119,6 +1133,7 @@ expression: pages
                     text_format: TextFormat {
                         font_size: None,
                         font_color: None,
+                        font_family: None,
                         justify: Justify {
                             x: Center,
                             y: Middle,

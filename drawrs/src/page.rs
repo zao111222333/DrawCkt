@@ -251,13 +251,29 @@ impl DiagramObject {
     }
 
     /// Get the XML parent of this object
-    pub fn xml_parent(&self) -> Option<&String> {
-        self.base().xml_parent.as_ref()
+    pub fn xml_parent(&self) -> Option<&str> {
+        self.base().xml_parent.as_ref().map(|s| s.as_str())
     }
 
     /// Set the XML parent of this object
     pub fn set_xml_parent(&mut self, parent: Option<String>) {
         self.base_mut().xml_parent = parent;
+    }
+
+    /// Get mutable reference to Object if this is an Object
+    pub fn as_object_mut(&mut self) -> Option<&mut Object> {
+        match self {
+            DiagramObject::Object(o) => Some(o),
+            _ => None,
+        }
+    }
+
+    /// Get mutable reference to Edge if this is an Edge
+    pub fn as_edge_mut(&mut self) -> Option<&mut Edge> {
+        match self {
+            DiagramObject::Edge(e) => Some(e),
+            _ => None,
+        }
     }
 }
 

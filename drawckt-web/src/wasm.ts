@@ -183,22 +183,20 @@ export const wasmAPI = {
     }
   },
 
-  async updateLayerStyles(stylesJson: string): Promise<{ success: boolean; only_sch_visible_changed: boolean }> {
+  async updateLayerStyles(stylesJson: string): Promise<{ success: boolean }> {
     await initWasm();
     try {
       const result = wasm.update_layer_styles(stylesJson);
       // Handle different return types (Map or object)
-      let updateResult: { success: boolean; only_sch_visible_changed: boolean };
+      let updateResult: { success: boolean};
       if (result instanceof Map) {
         updateResult = {
-          success: result.get('success') ?? false,
-          only_sch_visible_changed: result.get('only_sch_visible_changed') ?? false,
+          success: result.get('success') ?? false
         };
       } else if (result && typeof result === 'object') {
         const obj = result as any;
         updateResult = {
           success: Boolean(obj.success ?? false),
-          only_sch_visible_changed: Boolean(obj.only_sch_visible_changed ?? false),
         };
       } else {
         throw new Error(`Unexpected result type: ${typeof result}`);

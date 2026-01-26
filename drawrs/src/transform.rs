@@ -5,7 +5,6 @@ use crate::{
     diagram::text_format::{Justify, JustifyX},
 };
 use serde::{Deserialize, Serialize};
-use std::fmt;
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub enum Orient {

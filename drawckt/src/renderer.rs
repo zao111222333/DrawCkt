@@ -1,16 +1,16 @@
 use crate::error::{DrawcktError, DrawcktResult};
 use crate::schematic::*;
+use drawrs::FillStyle;
 use drawrs::diagram::text_format::{Justify, JustifyX, JustifyY};
 use drawrs::xml_base::XMLBase;
-use drawrs::FillStyle;
 use drawrs::{
-    parse_xml_to_object, BoundingBox, DiagramObject, DrawFile, Edge, GroupTransform, Object, Page,
+    BoundingBox, DiagramObject, DrawFile, Edge, GroupTransform, Object, Page, parse_xml_to_object,
 };
 use indexmap::IndexMap;
 use log::info;
 use ordered_float::OrderedFloat;
-use quick_xml::events::Event;
 use quick_xml::Reader;
+use quick_xml::events::Event;
 use std::borrow::Cow;
 use std::collections::HashMap;
 use std::fs;
@@ -24,6 +24,155 @@ const SCALE: f64 = 200.0;
 pub struct SymbolPageData {
     objects: Vec<drawrs::page::DiagramObject>, // Parsed drawrs objects (Object or Edge)
     origin_bounding_box: BoundingBox,
+}
+
+impl LayerStyle {
+    fn update_label(
+        obj: &mut DiagramObject,
+        old_style: &Self,
+        new_style: &Self,
+    ) -> DrawcktResult<()> {
+        if let Some(object) = obj.as_object_mut() {
+            // Update font color
+            if old_style.text_color != new_style.text_color {
+                object.set_font_color(Some(new_style.text_color.clone().into_owned()));
+            }
+
+            // Update font size based on font_zoom ratio
+            if let Some(current_font_size) = object.font_size() {
+                if old_style.font_zoom != new_style.font_zoom && old_style.font_zoom > 0.0 {
+                    let new_font_size =
+                        current_font_size * (new_style.font_zoom / old_style.font_zoom);
+                    object.set_font_size(Some(new_font_size));
+
+                    // Update width proportionally if it was calculated from text length
+                    if let Some(text) = object.value() {
+                        let font_height = new_font_size;
+                        let font_width = font_height * text.len() as f64 / 2.0;
+                        object.set_width(font_width);
+                        object.set_height(font_height);
+                    }
+                }
+            }
+
+            // Update font family
+            if old_style.font_family != new_style.font_family {
+                object.set_font_family(Some(new_style.font_family.clone().into_owned()));
+            }
+        }
+        Ok(())
+    }
+    fn update_shape(
+        obj: &mut DiagramObject,
+        old_style: &Self,
+        new_style: &Self,
+    ) -> DrawcktResult<()> {
+        match obj {
+            DiagramObject::Edge(edge) => {
+                if old_style.stroke_color != new_style.stroke_color {
+                    edge.set_stroke_color(Some(new_style.stroke_color.clone().into_owned()));
+                }
+                if old_style.stroke_width != new_style.stroke_width {
+                    edge.set_stroke_width(Some(new_style.stroke_width));
+                }
+            }
+            DiagramObject::Object(object) => {
+                if let Some(color) = object.stroke_color()
+                    && color != "none"
+                {
+                    object.set_stroke_width(Some(new_style.stroke_width));
+                    object.set_stroke_color(Some(new_style.stroke_color.clone().into_owned()));
+                }
+                if let Some(color) = object.fill_color()
+                    && color != "none"
+                {
+                    object.set_fill_color(Some(new_style.stroke_color.clone().into_owned()));
+                }
+            }
+            DiagramObject::XmlBase(_) => {
+                // XmlBase objects don't need style updates
+            }
+        }
+        Ok(())
+    }
+}
+
+impl SymbolPageData {
+    pub fn update_style(
+        self,
+        old_style: &LayerStyles,
+        new_style: &LayerStyles,
+    ) -> impl Iterator<Item = DrawcktResult<Option<DiagramObject>>> {
+        self.objects.into_iter().map(|mut obj| {
+            match obj.xml_parent() {
+                Some("layer-instance-label") => {
+                    LayerStyle::update_label(&mut obj, &old_style.instance, &new_style.instance)?
+                }
+                Some("layer-instance-shape") => {
+                    LayerStyle::update_shape(&mut obj, &old_style.instance, &new_style.instance)?
+                }
+                Some("layer-annotate-label") => {
+                    LayerStyle::update_label(&mut obj, &old_style.annotate, &new_style.annotate)?
+                }
+                Some("layer-annotate-shape") => {
+                    LayerStyle::update_shape(&mut obj, &old_style.annotate, &new_style.annotate)?
+                }
+                Some("layer-pin-label") => {
+                    LayerStyle::update_label(&mut obj, &old_style.pin, &new_style.pin)?
+                }
+                Some("layer-pin-shape") => {
+                    LayerStyle::update_shape(&mut obj, &old_style.pin, &new_style.pin)?
+                }
+                Some("layer-device-label") => {
+                    LayerStyle::update_label(&mut obj, &old_style.device, &new_style.device)?
+                }
+                Some("layer-device-shape") => {
+                    LayerStyle::update_shape(&mut obj, &old_style.device, &new_style.device)?
+                }
+                Some("layer-wire-label") => {
+                    LayerStyle::update_label(&mut obj, &old_style.wire, &new_style.wire)?
+                }
+                Some("layer-wire-shape") => {
+                    LayerStyle::update_shape(&mut obj, &old_style.wire, &new_style.wire)?
+                }
+                Some("layer-wire-intersection") => {
+                    // update bounding box based on wire_intersection_scale change
+                    if let Some((bbox, _)) = obj.mut_box() {
+                        let old_scale = old_style.wire_intersection_scale;
+                        let new_scale = new_style.wire_intersection_scale;
+
+                        if (old_scale - new_scale).abs() > f64::EPSILON && old_scale > 0.0 {
+                            // Calculate center point
+                            let center_x = bbox.min_x + bbox.width / 2.0;
+                            let center_y = bbox.min_y + bbox.height / 2.0;
+
+                            // Calculate relative scale factor
+                            let scale_ratio = new_scale / old_scale;
+
+                            // Scale width and height
+                            let new_width = bbox.width * scale_ratio;
+                            let new_height = bbox.height * scale_ratio;
+
+                            // Update bounding box while keeping center point unchanged
+                            bbox.min_x = center_x - new_width / 2.0;
+                            bbox.min_y = center_y - new_height / 2.0;
+                            bbox.width = new_width;
+                            bbox.height = new_height;
+                        }
+                    }
+                    LayerStyle::update_shape(&mut obj, &old_style.wire, &new_style.wire)?
+                }
+                Some("layer-text-label") => {
+                    LayerStyle::update_label(&mut obj, &old_style.text, &new_style.text)?
+                }
+                Some("layer-text-shape") => {
+                    LayerStyle::update_shape(&mut obj, &old_style.text, &new_style.text)?
+                }
+                _ => {}
+            }
+            Ok(Some(obj))
+        })
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -121,29 +270,14 @@ impl<'a> Renderer<'a> {
         }
     }
 
-    fn get_layer_style(&self, layer: &Layer) -> &'a LayerStyle {
-        match layer {
-            Layer::Instance => &self.layer_styles.instance,
-            Layer::Annotate => &self.layer_styles.annotate,
-            Layer::Pin => &self.layer_styles.pin,
-            Layer::Device => &self.layer_styles.device,
-            Layer::Wire => &self.layer_styles.wire,
-            Layer::Text => &self.layer_styles.text,
-        }
-    }
-
-    fn init_layers<const IS_SCH: bool>(
-        &self,
-        page: &mut Page,
-        layer_order: &[Layer; 6],
-    ) -> DrawcktResult<()> {
+    fn init_layers(style: &LayerStyles, page: &mut Page) -> DrawcktResult<()> {
         let mut instance = false;
         let mut annotate = false;
         let mut pin = false;
         let mut device = false;
         let mut wire = false;
         let mut text = false;
-        for layer in layer_order.iter().rev() {
+        for layer in style.layer_order.iter().rev() {
             match layer {
                 Layer::Instance => {
                     if instance {
@@ -182,29 +316,38 @@ impl<'a> Renderer<'a> {
                     text = true;
                 }
             }
-            let mut shape_layer_cell = drawrs::xml_base::XMLBase::new(Some(layer.id_shape()));
+            if *layer == Layer::Wire {
+                let mut intersection_layer_cell =
+                    drawrs::xml_base::XMLBase::new(Some(layer.id_shape(true)));
+                intersection_layer_cell.xml_class = "mxCell".to_string();
+                intersection_layer_cell.xml_parent = Some("0".to_string());
+                intersection_layer_cell.value = Some(format!("{layer}-intersection"));
+                intersection_layer_cell.visible = Some(if style.wire_show_intersection {
+                    "1".to_string()
+                } else {
+                    "0".to_string()
+                });
+                page.add_object(drawrs::DiagramObject::XmlBase(intersection_layer_cell));
+            }
+            let mut shape_layer_cell = drawrs::xml_base::XMLBase::new(Some(layer.id_shape(false)));
             shape_layer_cell.xml_class = "mxCell".to_string();
             shape_layer_cell.xml_parent = Some("0".to_string());
             shape_layer_cell.value = Some(format!("{layer}-shape"));
-            shape_layer_cell.visible = Some(
-                if IS_SCH && !self.get_layer_style(layer).shape_sch_visible {
-                    "0".to_string()
-                } else {
-                    "1".to_string()
-                },
-            );
+            shape_layer_cell.visible = Some(if style.layer_style(layer).shape_sch_visible {
+                "1".to_string()
+            } else {
+                "0".to_string()
+            });
             page.add_object(drawrs::DiagramObject::XmlBase(shape_layer_cell));
             let mut label_layer_cell = drawrs::xml_base::XMLBase::new(Some(layer.id_label()));
             label_layer_cell.xml_class = "mxCell".to_string();
             label_layer_cell.xml_parent = Some("0".to_string());
             label_layer_cell.value = Some(format!("{layer}-label"));
-            label_layer_cell.visible = Some(
-                if IS_SCH && !self.get_layer_style(layer).label_sch_visible {
-                    "0".to_string()
-                } else {
-                    "1".to_string()
-                },
-            );
+            label_layer_cell.visible = Some(if style.layer_style(layer).label_sch_visible {
+                "1".to_string()
+            } else {
+                "0".to_string()
+            });
             page.add_object(drawrs::DiagramObject::XmlBase(label_layer_cell));
         }
         Ok(())
@@ -444,11 +587,11 @@ impl<'a> Renderer<'a> {
             .symbols
             .iter()
             .map(|template| {
-                let mut symbol_file = DrawFile::new();
                 let name = format!("{}/{}", template.lib, template.cell);
                 let mut symbol_page = Page::new(Some(name.clone()), false);
                 symbol_page.set_name(name);
                 self.render_symbol(&mut symbol_page, template)?;
+                let mut symbol_file = DrawFile::new();
                 symbol_file.add_page(symbol_page);
                 let symbol_id = SymbolId {
                     lib: template.lib.as_str().into(),
@@ -461,7 +604,13 @@ impl<'a> Renderer<'a> {
     }
 
     // Unified function to render a single Shape
-    fn render_shape(&self, shape: &Shape, page: &mut Page, obj_id: String) -> DrawcktResult<()> {
+    fn render_shape(
+        &self,
+        shape: &Shape,
+        page: &mut Page,
+        obj_id: String,
+        is_intersection: bool,
+    ) -> DrawcktResult<()> {
         match shape {
             Shape::Rect {
                 layer,
@@ -474,14 +623,14 @@ impl<'a> Renderer<'a> {
                     let width = (b_box[1][0] - b_box[0][0]) * SCALE;
                     let height = (b_box[1][1] - b_box[0][1]) * SCALE;
 
-                    let layer_style = self.get_layer_style(layer);
+                    let layer_style = self.layer_styles.layer_style(layer);
 
                     let mut obj = Object::new(Some(obj_id));
                     obj.set_position([*x, *y]);
                     obj.set_width(width.abs());
                     obj.set_height(height.abs());
                     self.apply_fill_style(&mut obj, *fill_style, layer_style);
-                    obj.set_xml_parent(Some(layer.id_shape()));
+                    obj.set_xml_parent(Some(layer.id_shape(is_intersection)));
                     page.add_object(DiagramObject::Object(obj));
                 }
             }
@@ -503,12 +652,12 @@ impl<'a> Renderer<'a> {
                     let target_x = target[0] * SCALE;
                     let target_y = -target[1] * SCALE;
 
-                    let layer_style = self.get_layer_style(layer);
+                    let layer_style = self.layer_styles.layer_style(layer);
 
                     let mut edge = Edge::new(Some(obj_id));
                     edge.set_stroke_width(Some(layer_style.stroke_width));
                     edge.set_stroke_color(Some(layer_style.stroke_color.clone().into_owned()));
-                    edge.set_xml_parent(Some(layer.id_shape()));
+                    edge.set_xml_parent(Some(layer.id_shape(is_intersection)));
                     edge.geometry().set_width(width);
                     edge.geometry().set_height(height);
                     edge.geometry().set_relative(Some(true));
@@ -534,7 +683,7 @@ impl<'a> Renderer<'a> {
                 height,
                 justify,
             } => {
-                let layer_style = self.get_layer_style(layer);
+                let layer_style = self.layer_styles.layer_style(layer);
                 let mut x = xy[0] * SCALE;
                 let mut y = -xy[1] * SCALE;
                 let font_height = 1.2 * height.as_ref() * SCALE * layer_style.font_zoom;
@@ -632,14 +781,14 @@ impl<'a> Renderer<'a> {
                         })
                         .collect();
 
-                    let layer_style = self.get_layer_style(layer);
+                    let layer_style = self.layer_styles.layer_style(layer);
 
                     let mut obj = Object::new(Some(obj_id));
                     obj.set_position([*x, *y]);
                     obj.set_width(width.abs());
                     obj.set_height(height.abs());
                     self.apply_fill_style(&mut obj, *fill_style, layer_style);
-                    obj.set_xml_parent(Some(layer.id_shape()));
+                    obj.set_xml_parent(Some(layer.id_shape(is_intersection)));
                     obj.set_shape("mxgraph.basic.polygon".to_string());
                     obj.set_poly_coords(poly_coords);
                     page.add_object(DiagramObject::Object(obj));
@@ -656,14 +805,14 @@ impl<'a> Renderer<'a> {
                     let width = (b_box[1][0] - b_box[0][0]) * SCALE;
                     let height = (b_box[1][1] - b_box[0][1]) * SCALE;
 
-                    let layer_style = self.get_layer_style(layer);
+                    let layer_style = self.layer_styles.layer_style(layer);
 
                     let mut obj = Object::new(Some(obj_id));
                     obj.set_position([*x, *y]);
                     obj.set_width(width.abs());
                     obj.set_height(height.abs());
                     self.apply_fill_style(&mut obj, *fill_style, layer_style);
-                    obj.set_xml_parent(Some(layer.id_shape()));
+                    obj.set_xml_parent(Some(layer.id_shape(is_intersection)));
                     obj.set_shape("ellipse".to_string());
                     page.add_object(obj.into());
                 }
@@ -673,7 +822,7 @@ impl<'a> Renderer<'a> {
     }
 
     fn render_symbol(&self, page: &mut Page, template: &Symbol) -> DrawcktResult<()> {
-        self.init_layers::<false>(page, &self.layer_styles.layer_order)?;
+        Self::init_layers(&self.layer_styles, page)?;
 
         let mut lines_wire = Vec::new();
         let mut lines_instance = Vec::new();
@@ -693,7 +842,7 @@ impl<'a> Renderer<'a> {
                     Layer::Text => lines_text.push(points),
                 }
             } else {
-                self.render_shape(shape, page, template.gen_obj_id(shape.layer(), idx))?;
+                self.render_shape(shape, page, template.gen_obj_id(shape.layer(), idx), false)?;
                 idx += 1;
             }
         }
@@ -710,6 +859,7 @@ impl<'a> Renderer<'a> {
                     &Shape::Line { layer, points },
                     page,
                     template.gen_obj_id(&layer, idx),
+                    false,
                 )?;
                 idx += 1;
             }
@@ -721,9 +871,9 @@ impl<'a> Renderer<'a> {
         // Parse symbol contexts to extract pages
         let mut symbol_pages = IndexMap::new();
         for (symbol_id, content) in &symbols_content.0 {
-            let pages = Self::parse_symbols_file(content)?;
+            let mut pages = Self::parse_drawio_file(content)?;
             // Each symbol file should have only one page
-            if let Some((_, page_data)) = pages.into_iter().next() {
+            if let Some((_, page_data)) = pages.pop() {
                 symbol_pages.insert((symbol_id.lib.as_ref(), symbol_id.cell.as_ref()), page_data);
             } else {
                 return Err(DrawcktError::SymbolNotFound(format!(
@@ -742,8 +892,8 @@ impl<'a> Renderer<'a> {
             self.schematic.design.lib, self.schematic.design.cell
         );
         let mut schematic_page = Page::new(Some(page_name.clone()), false);
-        schematic_page.set_name(page_name.clone());
-        self.init_layers::<true>(&mut schematic_page, &self.layer_styles.layer_order)?;
+        schematic_page.set_name(page_name);
+        Self::init_layers(&self.layer_styles, &mut schematic_page)?;
 
         // Process each instance
         for instance in &self.schematic.instances {
@@ -790,6 +940,7 @@ impl<'a> Renderer<'a> {
                     },
                     &mut schematic_page,
                     Self::gen_wire_id(&net_name, wire_counter),
+                    false,
                 )?;
             }
         }
@@ -813,52 +964,52 @@ impl<'a> Renderer<'a> {
                 },
                 &mut schematic_page,
                 format!("pin-{i}"),
+                false,
             )?;
         }
 
         // Render labels
         for (i, label) in self.schematic.labels.iter().enumerate() {
-            self.render_shape(label, &mut schematic_page, format!("label-{i}"))?;
+            self.render_shape(label, &mut schematic_page, format!("label-{i}"), false)?;
         }
 
         // Render shapes (with wire_show_intersection check)
         for (i, shape) in self.schematic.shapes.iter().enumerate() {
             // Skip wire layer shapes if wire_show_intersection is false
             if shape.layer().eq(&Layer::Wire) {
-                if self.layer_styles.wire_show_intersection {
-                    if let Shape::Ellipse {
-                        layer,
-                        fill_style,
-                        b_box,
-                    } = shape
-                    {
-                        // Scale the bounding box while keeping the center point unchanged
-                        let scale = self.layer_styles.wire_intersection_scale;
-                        let center_x = (b_box[0][0] + b_box[1][0]) / 2.0;
-                        let center_y = (b_box[0][1] + b_box[1][1]) / 2.0;
-                        let width = b_box[1][0] - b_box[0][0];
-                        let height = b_box[1][1] - b_box[0][1];
-                        let new_width = width * scale;
-                        let new_height = height * scale;
-                        let scaled_b_box = [
-                            [center_x - new_width / 2.0, center_y - new_height / 2.0],
-                            [center_x + new_width / 2.0, center_y + new_height / 2.0],
-                        ];
-                        self.render_shape(
-                            &Shape::Ellipse {
-                                layer: *layer,
-                                fill_style: *fill_style,
-                                b_box: scaled_b_box,
-                            },
-                            &mut schematic_page,
-                            format!("shape-{i}"),
-                        )?;
-                    } else {
-                        self.render_shape(shape, &mut schematic_page, format!("shape-{i}"))?;
-                    }
+                if let Shape::Ellipse {
+                    layer,
+                    fill_style,
+                    b_box,
+                } = shape
+                {
+                    // Scale the bounding box while keeping the center point unchanged
+                    let scale = self.layer_styles.wire_intersection_scale;
+                    let center_x = (b_box[0][0] + b_box[1][0]) / 2.0;
+                    let center_y = (b_box[0][1] + b_box[1][1]) / 2.0;
+                    let width = b_box[1][0] - b_box[0][0];
+                    let height = b_box[1][1] - b_box[0][1];
+                    let new_width = width * scale;
+                    let new_height = height * scale;
+                    let scaled_b_box = [
+                        [center_x - new_width / 2.0, center_y - new_height / 2.0],
+                        [center_x + new_width / 2.0, center_y + new_height / 2.0],
+                    ];
+                    self.render_shape(
+                        &Shape::Ellipse {
+                            layer: *layer,
+                            fill_style: *fill_style,
+                            b_box: scaled_b_box,
+                        },
+                        &mut schematic_page,
+                        format!("shape-{i}"),
+                        true,
+                    )?;
+                } else {
+                    self.render_shape(shape, &mut schematic_page, format!("shape-{i}"), false)?;
                 }
             } else {
-                self.render_shape(shape, &mut schematic_page, format!("shape-{i}"))?;
+                self.render_shape(shape, &mut schematic_page, format!("shape-{i}"), false)?;
             }
         }
 
@@ -867,7 +1018,7 @@ impl<'a> Renderer<'a> {
     }
 
     // Parse symbols.drawio file to extract pages
-    pub fn parse_symbols_file(content: &str) -> DrawcktResult<IndexMap<String, SymbolPageData>> {
+    pub fn parse_drawio_file(content: &str) -> DrawcktResult<IndexMap<String, SymbolPageData>> {
         let mut reader = Reader::from_str(content);
         reader.trim_text(true);
 
@@ -1093,6 +1244,30 @@ impl<'a> Renderer<'a> {
         match s {
             "instance" | "annotate" | "pin" | "device" => Ok(s.to_string()),
             _ => Err(DrawcktError::UnknownLayer(s.to_string())),
+        }
+    }
+
+    pub fn update_style(
+        content: &str,
+        old_style: &LayerStyles,
+        new_style: &LayerStyles,
+    ) -> DrawcktResult<String> {
+        // Each symbol file should have only one page
+        if let Some((page_name, page_data)) = Self::parse_drawio_file(content)?.pop() {
+            let mut page = Page::new(Some(page_name.clone()), false);
+            page.set_name(page_name);
+            Self::init_layers(new_style, &mut page)?;
+            for obj_res in page_data.update_style(old_style, new_style) {
+                // Get the new group bounding box
+                if let Some(obj) = obj_res? {
+                    page.add_object(obj);
+                }
+            }
+            let mut file = DrawFile::new();
+            file.add_page(page);
+            Ok(file.xml().to_string())
+        } else {
+            Err(DrawcktError::NoPage)
         }
     }
 }

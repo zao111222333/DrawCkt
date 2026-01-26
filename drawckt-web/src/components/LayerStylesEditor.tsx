@@ -91,9 +91,10 @@ interface FontInputProps {
   value: string;
   onChange: (value: string) => void;
   id: string;
+  onMouseDown?: (e: React.MouseEvent) => void;
 }
 
-const FontInput: React.FC<FontInputProps> = ({ value, onChange, id }) => {
+const FontInput: React.FC<FontInputProps> = ({ value, onChange, id, onMouseDown }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [inputValue, setInputValue] = useState(value);
   const [highlightedIndex, setHighlightedIndex] = useState(-1);
@@ -203,8 +204,37 @@ const FontInput: React.FC<FontInputProps> = ({ value, onChange, id }) => {
     }
   }, [isOpen]);
 
+  const handleWrapperMouseDown = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (onMouseDown) {
+      onMouseDown(e);
+    }
+  };
+
+  const handleInputMouseDown = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (onMouseDown) {
+      onMouseDown(e);
+    }
+  };
+
   return (
-    <div className="font-input-wrapper" ref={wrapperRef}>
+    <div 
+      className="font-input-wrapper" 
+      ref={wrapperRef}
+      draggable={false}
+      onDragStart={(e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        return false;
+      }}
+      onDrag={(e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        return false;
+      }}
+      onMouseDown={handleWrapperMouseDown}
+    >
       <input
         ref={inputRef}
         type="text"
@@ -216,6 +246,18 @@ const FontInput: React.FC<FontInputProps> = ({ value, onChange, id }) => {
         className="font-input"
         placeholder="Select or type font name"
         autoComplete="off"
+        draggable={false}
+        onDragStart={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          return false;
+        }}
+        onDrag={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          return false;
+        }}
+        onMouseDown={handleInputMouseDown}
       />
       {isOpen && filteredFonts.length > 0 && (
         <div className="font-dropdown" ref={dropdownRef}>
@@ -253,6 +295,7 @@ const LayerStylesEditor: React.FC<LayerStylesEditorProps> = ({
   const originalLayerOrderRef = useRef<string[] | null>(null);
   const isDraggingRef = useRef<boolean>(false);
   const isInitialMount = useRef(true);
+  const canDragRef = useRef<boolean>(false);
   
   // Drag threshold: minimum distance (in pixels) or time (in ms) to consider it a drag
   const DRAG_THRESHOLD_DISTANCE = 5;
@@ -338,7 +381,51 @@ const LayerStylesEditor: React.FC<LayerStylesEditorProps> = ({
     });
   };
 
+  const isInteractiveElement = (element: HTMLElement | null): boolean => {
+    if (!element) return false;
+    // Only check for actual interactive elements (input, button), not containers
+    return !!(
+      element.tagName === 'INPUT' || 
+      element.tagName === 'BUTTON' ||
+      element.closest('input') ||
+      element.closest('button') ||
+      element.closest('.font-input-wrapper')
+    );
+  };
+
+  const handleMouseDown = (e: React.MouseEvent) => {
+    // Check if mouse down is on an interactive element
+    const target = e.target as HTMLElement;
+    if (isInteractiveElement(target)) {
+      canDragRef.current = false;
+      e.stopPropagation();
+    } else {
+      canDragRef.current = true;
+    }
+  };
+
   const handleDragStart = (e: React.DragEvent, index: number) => {
+    // Check if drag started from an input or interactive element
+    const target = e.target as HTMLElement;
+    if (isInteractiveElement(target)) {
+      e.preventDefault();
+      e.stopPropagation();
+      if (e.dataTransfer) {
+        e.dataTransfer.effectAllowed = 'none';
+      }
+      return false;
+    }
+    
+    // Also check canDragRef in case mouseDown was on interactive element
+    if (!canDragRef.current) {
+      e.preventDefault();
+      e.stopPropagation();
+      if (e.dataTransfer) {
+        e.dataTransfer.effectAllowed = 'none';
+      }
+      return false;
+    }
+
     // Record initial position and time
     dragStartPosRef.current = {
       x: e.clientX,
@@ -627,18 +714,19 @@ const LayerStylesEditor: React.FC<LayerStylesEditorProps> = ({
             key={key}
             className={`layer-item ${isDragging ? 'dragging' : ''} ${isDragOver ? 'drag-over' : ''}`}
             data-layer-key={key}
-            draggable
-            onDragStart={(e) => handleDragStart(e, index)}
             onDragOver={(e) => handleDragOver(e, index)}
             onDragLeave={handleDragLeave}
             onDrop={handleDrop}
-            onDragEnd={handleDragEnd}
           >
             <div 
               className="layer-header"
+              draggable
+              onMouseDown={handleMouseDown}
+              onDragStart={(e) => handleDragStart(e, index)}
+              onDragEnd={handleDragEnd}
               onClick={(e) => handleHeaderClick(e, key)}
             >
-              <div className="layer-controls">
+              <div className="layer-controls" onDragStart={(e) => e.stopPropagation()} onDrag={(e) => e.stopPropagation()}>
                 <button
                   className="layer-order-btn"
                   onClick={(e) => {
@@ -647,6 +735,9 @@ const LayerStylesEditor: React.FC<LayerStylesEditorProps> = ({
                   }}
                   disabled={!canMoveUp}
                   title="Move up"
+                  draggable={false}
+                  onDragStart={(e) => e.stopPropagation()}
+                  onDrag={(e) => e.stopPropagation()}
                 >
                   ↑
                 </button>
@@ -658,6 +749,9 @@ const LayerStylesEditor: React.FC<LayerStylesEditorProps> = ({
                   }}
                   disabled={!canMoveDown}
                   title="Move down"
+                  draggable={false}
+                  onDragStart={(e) => e.stopPropagation()}
+                  onDrag={(e) => e.stopPropagation()}
                 >
                   ↓
                 </button>
@@ -670,7 +764,13 @@ const LayerStylesEditor: React.FC<LayerStylesEditorProps> = ({
               </span>
             </div>
             {isExpanded && (
-              <div className="layer-fields">
+            <div 
+              className="layer-fields"
+              draggable
+              onMouseDown={handleMouseDown}
+              onDragStart={(e) => handleDragStart(e, index)}
+              onDragEnd={handleDragEnd}
+            >
                 {/* Text Group */}
                 <div className="field-group">
                   <div className="field-group-title">
@@ -679,17 +779,26 @@ const LayerStylesEditor: React.FC<LayerStylesEditorProps> = ({
                       checked={layer.label_sch_visible}
                       onChange={(e) => updateLayer(key, 'label_sch_visible', e.target.checked)}
                       onClick={(e) => e.stopPropagation()}
+                      draggable={false}
+                      onDragStart={(e) => e.stopPropagation()}
+                      onDrag={(e) => e.stopPropagation()}
                     />
                     Label
                   </div>
                   <div className="field-group-content">
                     <div className="field">
                       <label>Font</label>
-                      <FontInput
-                        value={layer.font_family}
-                        onChange={(value) => updateLayer(key, 'font_family', value)}
-                        id={`font-input-${key}`}
-                      />
+                      <div>
+                        <FontInput
+                          value={layer.font_family}
+                          onChange={(value) => updateLayer(key, 'font_family', value)}
+                          id={`font-input-${key}`}
+                          onMouseDown={(e) => {
+                            e.stopPropagation();
+                            canDragRef.current = false;
+                          }}
+                        />
+                      </div>
                     </div>
                     <div className="field">
                       <label>Color</label>
@@ -697,12 +806,42 @@ const LayerStylesEditor: React.FC<LayerStylesEditorProps> = ({
                         type="color"
                         value={layer.text_color}
                         onChange={(e) => updateLayer(key, 'text_color', e.target.value)}
+                        draggable={false}
+                        onDragStart={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          return false;
+                        }}
+                        onMouseDown={(e) => {
+                          e.stopPropagation();
+                          canDragRef.current = false;
+                        }}
+                        onDrag={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          return false;
+                        }}
                       />
                       <input
                         type="text"
                         value={layer.text_color}
                         onChange={(e) => updateLayer(key, 'text_color', e.target.value)}
                         className="color-text"
+                        draggable={false}
+                        onDragStart={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          return false;
+                        }}
+                        onMouseDown={(e) => {
+                          e.stopPropagation();
+                          canDragRef.current = false;
+                        }}
+                        onDrag={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          return false;
+                        }}
                       />
                     </div>
                     <div className="field">
@@ -713,6 +852,21 @@ const LayerStylesEditor: React.FC<LayerStylesEditorProps> = ({
                         min="0"
                         value={Math.round(layer.font_zoom * 100 * 100) / 100}
                         onChange={(e) => updateLayer(key, 'font_zoom', parseFloat(e.target.value) / 100)}
+                        draggable={false}
+                        onDragStart={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          return false;
+                        }}
+                        onMouseDown={(e) => {
+                          e.stopPropagation();
+                          canDragRef.current = false;
+                        }}
+                        onDrag={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          return false;
+                        }}
                       />
                     </div>
                   </div>
@@ -726,6 +880,9 @@ const LayerStylesEditor: React.FC<LayerStylesEditorProps> = ({
                       checked={layer.shape_sch_visible}
                       onChange={(e) => updateLayer(key, 'shape_sch_visible', e.target.checked)}
                       onClick={(e) => e.stopPropagation()}
+                      draggable={false}
+                      onDragStart={(e) => e.stopPropagation()}
+                      onDrag={(e) => e.stopPropagation()}
                     />
                     Shape
                   </div>
@@ -736,21 +893,66 @@ const LayerStylesEditor: React.FC<LayerStylesEditorProps> = ({
                         type="color"
                         value={layer.stroke_color}
                         onChange={(e) => updateLayer(key, 'stroke_color', e.target.value)}
+                        draggable={false}
+                        onDragStart={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          return false;
+                        }}
+                        onMouseDown={(e) => {
+                          e.stopPropagation();
+                          canDragRef.current = false;
+                        }}
+                        onDrag={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          return false;
+                        }}
                       />
                       <input
                         type="text"
                         value={layer.stroke_color}
                         onChange={(e) => updateLayer(key, 'stroke_color', e.target.value)}
                         className="color-text"
+                        draggable={false}
+                        onDragStart={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          return false;
+                        }}
+                        onMouseDown={(e) => {
+                          e.stopPropagation();
+                          canDragRef.current = false;
+                        }}
+                        onDrag={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          return false;
+                        }}
                       />
                     </div>
                     <div className="field">
                       <label>Width</label>
                       <input
                         type="number"
-                        step="0.1"
+                        step="0.5"
                         value={Math.round(layer.stroke_width * 100) / 100}
                         onChange={(e) => updateLayer(key, 'stroke_width', parseFloat(e.target.value))}
+                        draggable={false}
+                        onDragStart={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          return false;
+                        }}
+                        onMouseDown={(e) => {
+                          e.stopPropagation();
+                          canDragRef.current = false;
+                        }}
+                        onDrag={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          return false;
+                        }}
                       />
                     </div>
                   </div>
@@ -765,6 +967,9 @@ const LayerStylesEditor: React.FC<LayerStylesEditorProps> = ({
                         checked={localStyles.wire_show_intersection}
                         onChange={(e) => updateWireShowIntersection(e.target.checked)}
                         onClick={(e) => e.stopPropagation()}
+                        draggable={false}
+                        onDragStart={(e) => e.stopPropagation()}
+                        onDrag={(e) => e.stopPropagation()}
                       />
                       Intersection
                     </div>
@@ -777,6 +982,21 @@ const LayerStylesEditor: React.FC<LayerStylesEditorProps> = ({
                           min="0"
                           value={Math.round(localStyles.wire_intersection_scale * 100 * 100) / 100}
                           onChange={(e) => updateWireIntersectionScale(parseFloat(e.target.value) / 100)}
+                          draggable={false}
+                          onDragStart={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            return false;
+                          }}
+                          onMouseDown={(e) => {
+                            e.stopPropagation();
+                            canDragRef.current = false;
+                          }}
+                          onDrag={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            return false;
+                          }}
                         />
                       </div>
                     </div>

@@ -24,6 +24,9 @@ pub enum DrawcktError {
     #[error("Symbol page '{0}' not found in symbols.drawio")]
     SymbolNotFound(String),
 
+    #[error("No page found")]
+    NoPage,
+
     #[error("Repeat layer: {0}")]
     RepeatLayer(Layer),
 }

@@ -406,19 +406,16 @@ function App() {
 
   const handleLayerStylesUpdate = async (styles: LayerStyles) => {
     try {
-      const result = await wasmAPI.updateLayerStyles(JSON.stringify(styles));
+      await wasmAPI.updateLayerStyles(JSON.stringify(styles));
       setLayerStyles(styles);
       // Re-process schematic if it exists
       if (schematicReady) {
         // Mark as having unsaved changes
         setHasUnsavedChanges(true);
-        // If only sch_visible changed, don't refresh symbols list
-        if (!result.only_sch_visible_changed) {
-          const allSymbols = await wasmAPI.getAllSymbols();
-          setSymbols(allSymbols);
-          // Force symbols list to re-render by updating refresh key
-          setSymbolsRefreshKey(prev => prev + 1);
-        }
+        const allSymbols = await wasmAPI.getAllSymbols();
+        setSymbols(allSymbols);
+        // Force symbols list to re-render by updating refresh key
+        setSymbolsRefreshKey(prev => prev + 1);
         // Always force schematic view to re-render by updating refresh key
         setSchematicRefreshKey(prev => prev + 1);
       }

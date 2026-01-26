@@ -1,7 +1,7 @@
 use core::fmt;
 use std::borrow::Cow;
 
-use drawrs::{diagram::text_format::Justify, Orient};
+use drawrs::{Orient, diagram::text_format::Justify};
 use indexmap::IndexSet;
 use ordered_float::OrderedFloat;
 use serde::{Deserialize, Serialize};
@@ -34,8 +34,12 @@ impl Layer {
     pub fn id_label(&self) -> String {
         format!("layer-{self}-label")
     }
-    pub fn id_shape(&self) -> String {
-        format!("layer-{self}-shape")
+    pub fn id_shape(&self, is_intersection: bool) -> String {
+        if is_intersection {
+            format!("layer-{self}-intersection")
+        } else {
+            format!("layer-{self}-shape")
+        }
     }
 }
 
@@ -97,6 +101,19 @@ pub struct LayerStyles {
     pub annotate: LayerStyle,
     pub pin: LayerStyle,
     pub text: LayerStyle,
+}
+
+impl LayerStyles {
+    pub(crate) fn layer_style<'a>(&'a self, layer: &Layer) -> &'a LayerStyle {
+        match layer {
+            Layer::Instance => &self.instance,
+            Layer::Annotate => &self.annotate,
+            Layer::Pin => &self.pin,
+            Layer::Device => &self.device,
+            Layer::Wire => &self.wire,
+            Layer::Text => &self.text,
+        }
+    }
 }
 
 impl Default for LayerStyles {
