@@ -619,6 +619,7 @@ impl<'a> Renderer<'a> {
                         }
                         JustifyY::Bottom => {
                             y -= font_height;
+                            obj.apply_style_property("spacing", "0");
                             obj.apply_style_property("spacingBottom", "-2");
                         }
                     }
@@ -635,7 +636,6 @@ impl<'a> Renderer<'a> {
                 obj.set_font_family(Some(layer_style.font_family.clone().into_owned()));
                 obj.set_xml_parent(Some(layer.id_label()));
                 obj.set_justify(*justify);
-                obj.apply_style_property("spacing", "0");
                 page.add_object(obj.into());
             }
             Shape::Polygon {

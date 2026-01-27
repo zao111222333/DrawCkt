@@ -1,9 +1,14 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import wasm from 'vite-plugin-wasm';
-import { resolve } from 'path';
-import { readFileSync, writeFileSync, mkdirSync, existsSync, unlinkSync, watch } from 'fs';
+import { resolve, dirname } from 'path';
+import { fileURLToPath } from 'url';
+import { readFileSync, mkdirSync, existsSync, unlinkSync, watch, copyFileSync, readdirSync, statSync } from 'fs';
 import { execSync } from 'child_process';
+
+// Get __dirname equivalent in ES modules
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
 // Support subfolder deployment via BASE_PATH environment variable
 // Example: BASE_PATH=/path/to/drawckt npm run build
@@ -61,6 +66,8 @@ const buildDocsPlugin = () => {
       
       // Handle /doc route in development - serve from dist/doc
       const distDocDir = resolve(__dirname, 'dist/doc');
+      // Handle /demo route in development - serve from static/demo
+      const staticDemoDir = resolve(__dirname, 'static/demo');
       server.middlewares.use((req, res, next) => {
         if (req.url === '/doc' || req.url === '/doc/') {
           req.url = '/doc/index.html';
@@ -76,6 +83,20 @@ const buildDocsPlugin = () => {
                                 ext === 'js' ? 'application/javascript' :
                                 ext === 'json' ? 'application/json' :
                                 'text/plain';
+            res.setHeader('Content-Type', contentType);
+            res.end(content);
+            return;
+          }
+        }
+        // Serve static files from static/demo
+        if (req.url?.startsWith('/demo/')) {
+          const filePath = resolve(staticDemoDir, req.url.replace('/demo/', ''));
+          if (existsSync(filePath) && statSync(filePath).isFile()) {
+            const content = readFileSync(filePath);
+            const ext = filePath.split('.').pop();
+            const contentType = ext === 'json' ? 'application/json' :
+                                ext === 'zip' ? 'application/zip' :
+                                'application/octet-stream';
             res.setHeader('Content-Type', contentType);
             res.end(content);
             return;
@@ -107,6 +128,24 @@ const buildDocsPlugin = () => {
       // If doc.html exists (from old build), remove it since we now use markdown-generated docs
       if (existsSync(docHtml)) {
         unlinkSync(docHtml);
+      }
+      
+      // Copy demo files from static/demo to dist/demo
+      const staticDemoDir = resolve(__dirname, 'static/demo');
+      const distDemoDir = resolve(distDir, 'demo');
+      if (existsSync(staticDemoDir)) {
+        if (!existsSync(distDemoDir)) {
+          mkdirSync(distDemoDir, { recursive: true });
+        }
+        const files = readdirSync(staticDemoDir);
+        for (const file of files) {
+          const srcPath = resolve(staticDemoDir, file);
+          const dstPath = resolve(distDemoDir, file);
+          if (statSync(srcPath).isFile()) {
+            copyFileSync(srcPath, dstPath);
+          }
+        }
+        console.log('📦 Copied demo files to dist/demo/');
       }
     },
   };

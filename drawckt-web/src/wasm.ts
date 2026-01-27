@@ -1,6 +1,7 @@
 // WASM bindings
 // @ts-ignore
 import init, * as wasm from '../pkg/drawckt_web.js';
+import { toAbsolutePath } from './utils/path';
 
 let wasmInitialized = false;
 
@@ -363,10 +364,25 @@ export const wasmAPI = {
   },
 
   async loadDemo(name: string): Promise<string> {
-    await initWasm();
+    // Load demo file from static /demo/ directory via HTTP
     try {
-      const result = wasm.load_demo(name);
-      return result as unknown as string;
+      // Use toAbsolutePath to handle subfolder deployment
+      const url = toAbsolutePath(`/demo/${name}`);
+      const response = await fetch(url);
+      if (!response.ok) {
+        throw new Error(`Failed to load demo: HTTP ${response.status} ${response.statusText}`);
+      }
+      // For ZIP files, return as base64; for JSON files, return as text
+      if (name.endsWith('.zip')) {
+        const arrayBuffer = await response.arrayBuffer();
+        // Convert ArrayBuffer to base64 safely (avoid call stack overflow for large files)
+        const bytes = new Uint8Array(arrayBuffer);
+        const binary = Array.from(bytes, byte => String.fromCharCode(byte)).join('');
+        const base64 = btoa(binary);
+        return base64;
+      } else {
+        return await response.text();
+      }
     } catch (error) {
       throw new Error(`Failed to load demo: ${error}`);
     }
