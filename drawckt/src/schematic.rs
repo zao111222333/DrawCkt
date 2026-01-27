@@ -222,6 +222,62 @@ impl Symbol {
     }
 }
 
+#[derive(Debug, Clone, Hash, PartialEq, Eq)]
+pub enum Font {
+    EuroStyle,
+    Fixed,
+    Gothic,
+    Math,
+    Roman,
+    Script,
+    Stick,
+    Swedish,
+    MilSpec,
+    Other(String),
+}
+
+impl Serialize for Font {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        let s = match self {
+            Font::EuroStyle => "euroStyle",
+            Font::Fixed => "fixed",
+            Font::Gothic => "gothic",
+            Font::Math => "math",
+            Font::Roman => "roman",
+            Font::Script => "script",
+            Font::Stick => "stick",
+            Font::Swedish => "swedish",
+            Font::MilSpec => "milSpec",
+            Font::Other(s) => s.as_str(),
+        };
+        serializer.serialize_str(s)
+    }
+}
+
+impl<'de> Deserialize<'de> for Font {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let s = String::deserialize(deserializer)?;
+        Ok(match s.as_str() {
+            "euroStyle" => Font::EuroStyle,
+            "fixed" => Font::Fixed,
+            "gothic" => Font::Gothic,
+            "math" => Font::Math,
+            "roman" => Font::Roman,
+            "script" => Font::Script,
+            "stick" => Font::Stick,
+            "swedish" => Font::Swedish,
+            "milSpec" => Font::MilSpec,
+            _ => Font::Other(s),
+        })
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, Hash, PartialEq, Eq)]
 #[serde(tag = "type")]
 pub enum Shape {
@@ -251,6 +307,7 @@ pub enum Shape {
         orient: String,
         height: OrderedFloat<f64>,
         justify: Justify,
+        font: Font,
     },
     #[serde(rename = "line")]
     Line {
@@ -267,6 +324,21 @@ pub enum Shape {
         #[serde(rename = "bBox")]
         b_box: [[OrderedFloat<f64>; 2]; 2],
     },
+    #[serde(rename = "arc")]
+    Arc {
+        #[serde(deserialize_with = "deserialize_layer")]
+        layer: Layer,
+        #[serde(rename = "fillStyle", default = "default_fill_style")]
+        fill_style: u8,
+        #[serde(rename = "bBox")]
+        b_box: [[OrderedFloat<f64>; 2]; 2],
+        /// startAngle yes float Starting angle of the arc (in radians)
+        #[serde(rename = "startAngle")]
+        start_angle: OrderedFloat<f64>,
+        /// stopAngle yes float Stopping angle of the arc (counterclockwise in radians)
+        #[serde(rename = "stopAngle")]
+        stop_angle: OrderedFloat<f64>,
+    },
 }
 
 impl Shape {
@@ -277,7 +349,8 @@ impl Shape {
             | Self::Line { layer, .. }
             | Self::Label { layer, .. }
             | Self::Polygon { layer, .. }
-            | Self::Ellipse { layer, .. } => layer,
+            | Self::Ellipse { layer, .. }
+            | Self::Arc { layer, .. } => layer,
         }
     }
 }

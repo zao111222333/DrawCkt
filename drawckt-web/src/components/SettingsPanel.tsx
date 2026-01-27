@@ -256,14 +256,14 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({
   // Reset page title when uploadStatus is empty or error
   useEffect(() => {
     if (!uploadStatus || uploadStatus.startsWith('✗')) {
-      document.title = 'DrawCkt';
+      document.title = 'DrawCKT';
     }
   }, [uploadStatus]);
 
   // Helper function to set page title
   const setLoadedSuccess = (filename: string) => {
     setUploadStatus(`✓ Loaded '${filename}'`);
-    document.title = `${filename} - DrawCkt`;
+    document.title = `${filename} - DrawCKT`;
   };
 
   const handleSchematicContent = async (content: string, filename: string) => {

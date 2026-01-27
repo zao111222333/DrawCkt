@@ -1,4 +1,5 @@
 use crate::renderer::Renderer;
+use crate::schematic::Font;
 use ordered_float::OrderedFloat;
 
 /// Helper function to convert Vec<Vec<[f64; 2]>> to Vec<Vec<[OrderedFloat<f64>; 2]>>
@@ -190,4 +191,15 @@ fn test_merge_lines_6() {
     );
     assert_contains_path!(merged_lines, [0.09375, 0.09375], [0.09375, -0.09375]);
     assert_contains_path!(merged_lines, [0.0, 0.0], [0.09375, 0.0]);
+}
+
+#[test]
+fn test_font_serde_other_roundtrip() {
+    let custom: Font = serde_json::from_str("\"myCustomFont\"").unwrap();
+    assert_eq!(custom, Font::Other("myCustomFont".to_string()));
+    assert_eq!(serde_json::to_string(&custom).unwrap(), "\"myCustomFont\"");
+
+    let known: Font = serde_json::from_str("\"stick\"").unwrap();
+    assert_eq!(known, Font::Stick);
+    assert_eq!(serde_json::to_string(&known).unwrap(), "\"stick\"");
 }

@@ -524,22 +524,19 @@ impl<'a> Renderer<'a> {
                 fill_style,
                 b_box,
             } => {
-                if b_box.len() >= 2 {
-                    let x = b_box[0][0] * SCALE;
-                    let y = -b_box[1][1] * SCALE;
-                    let width = (b_box[1][0] - b_box[0][0]) * SCALE;
-                    let height = (b_box[1][1] - b_box[0][1]) * SCALE;
+                let x = b_box[0][0] * SCALE;
+                let y = -b_box[1][1] * SCALE;
+                let width = (b_box[1][0] - b_box[0][0]) * SCALE;
+                let height = (b_box[1][1] - b_box[0][1]) * SCALE;
+                let layer_style = self.layer_styles.layer_style(layer);
 
-                    let layer_style = self.layer_styles.layer_style(layer);
-
-                    let mut obj = Object::new(Some(obj_id));
-                    obj.set_position([*x, *y]);
-                    obj.set_width(width.abs());
-                    obj.set_height(height.abs());
-                    self.apply_fill_style(&mut obj, *fill_style, layer_style);
-                    obj.set_xml_parent(Some(layer.id_shape(is_intersection)));
-                    page.add_object(DiagramObject::Object(obj));
-                }
+                let mut obj = Object::new(Some(obj_id));
+                obj.set_position([*x, *y]);
+                obj.set_width(width.abs());
+                obj.set_height(height.abs());
+                self.apply_fill_style(&mut obj, *fill_style, layer_style);
+                obj.set_xml_parent(Some(layer.id_shape(is_intersection)));
+                page.add_object(DiagramObject::Object(obj));
             }
             Shape::Line { layer, points } => {
                 if points.len() >= 2 {
@@ -586,9 +583,10 @@ impl<'a> Renderer<'a> {
                 layer,
                 text,
                 xy,
-                orient: _,
+                orient,
                 height,
                 justify,
+                font,
             } => {
                 let layer_style = self.layer_styles.layer_style(layer);
                 let mut x = xy[0] * SCALE;
@@ -706,23 +704,60 @@ impl<'a> Renderer<'a> {
                 fill_style,
                 b_box,
             } => {
-                if b_box.len() >= 2 {
-                    let x = b_box[0][0] * SCALE;
-                    let y = -b_box[1][1] * SCALE;
-                    let width = (b_box[1][0] - b_box[0][0]) * SCALE;
-                    let height = (b_box[1][1] - b_box[0][1]) * SCALE;
+                let x = b_box[0][0] * SCALE;
+                let y = -b_box[1][1] * SCALE;
+                let width = (b_box[1][0] - b_box[0][0]) * SCALE;
+                let height = (b_box[1][1] - b_box[0][1]) * SCALE;
 
-                    let layer_style = self.layer_styles.layer_style(layer);
+                let layer_style = self.layer_styles.layer_style(layer);
 
-                    let mut obj = Object::new(Some(obj_id));
-                    obj.set_position([*x, *y]);
-                    obj.set_width(width.abs());
-                    obj.set_height(height.abs());
-                    self.apply_fill_style(&mut obj, *fill_style, layer_style);
-                    obj.set_xml_parent(Some(layer.id_shape(is_intersection)));
-                    obj.set_shape("ellipse".to_string());
-                    page.add_object(obj.into());
+                let mut obj = Object::new(Some(obj_id));
+                obj.set_position([*x, *y]);
+                obj.set_width(width.abs());
+                obj.set_height(height.abs());
+                self.apply_fill_style(&mut obj, *fill_style, layer_style);
+                obj.set_xml_parent(Some(layer.id_shape(is_intersection)));
+                obj.set_shape("ellipse".to_string());
+                page.add_object(DiagramObject::Object(obj));
+            }
+            Shape::Arc {
+                layer,
+                fill_style,
+                b_box,
+                start_angle,
+                stop_angle,
+            } => {
+                let x = b_box[0][0] * SCALE;
+                let y = -b_box[1][1] * SCALE;
+                let width = (b_box[1][0] - b_box[0][0]) * SCALE;
+                let height = (b_box[1][1] - b_box[0][1]) * SCALE;
+
+                let layer_style = self.layer_styles.layer_style(layer);
+
+                let mut obj = Object::new(Some(obj_id));
+                obj.set_position([*x, *y]);
+                obj.set_width(width.abs());
+                obj.set_height(height.abs());
+                self.apply_fill_style(&mut obj, *fill_style, layer_style);
+                obj.set_xml_parent(Some(layer.id_shape(is_intersection)));
+                obj.set_shape("mxgraph.basic.arc".to_string());
+                fn to_drawio_angle(radian_counterclockwise_x_begin: &f64) -> f64 {
+                    let angle01_counterclockwise_x_begin =
+                        radian_counterclockwise_x_begin / std::f64::consts::PI / 2.0;
+                    let angle01_counterclockwise_y_begin =
+                        if angle01_counterclockwise_x_begin < 0.25 {
+                            angle01_counterclockwise_x_begin + 0.75
+                        } else {
+                            angle01_counterclockwise_x_begin - 0.25
+                        };
+                    let angle01_clockwise_y_begin = 1.0 - angle01_counterclockwise_y_begin;
+                    angle01_clockwise_y_begin
                 }
+                let drawio_start_angle = to_drawio_angle(stop_angle.as_ref());
+                let drawio_stop_angle = to_drawio_angle(start_angle.as_ref());
+                obj.apply_style_property("startAngle", &drawio_start_angle.to_string());
+                obj.apply_style_property("endAngle", &drawio_stop_angle.to_string());
+                page.add_object(DiagramObject::Object(obj));
             }
         }
         Ok(())
@@ -857,6 +892,7 @@ impl<'a> Renderer<'a> {
                         x: JustifyX::Right,
                         y: JustifyY::Middle,
                     },
+                    font: Font::Stick,
                 },
                 &mut schematic_page,
                 format!("pin-{i}"),

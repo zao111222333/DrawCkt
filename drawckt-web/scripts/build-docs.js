@@ -310,6 +310,20 @@ function processMarkdownFile(filePath, outputDir, basePath) {
   // Add ID attributes to headings for anchor links
   htmlContent = addHeadingIds(htmlContent, headings);
   
+  // Add download attribute to .il file links
+  htmlContent = htmlContent.replace(
+    /<a\s+([^>]*href=["']([^"']*\.il)["'][^>]*)>/gi,
+    (match, attrs, href) => {
+      // Check if download attribute already exists
+      if (attrs.includes('download')) {
+        return match;
+      }
+      // Extract filename from href
+      const fileName = href.split('/').pop();
+      return `<a ${attrs} download="${fileName}">`;
+    }
+  );
+  
   // Extract title from first h1 or use filename
   const firstH1 = headings.find(h => h.level === 1);
   const title = firstH1 ? firstH1.text : fileName;

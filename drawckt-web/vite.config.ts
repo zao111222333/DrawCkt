@@ -82,8 +82,14 @@ const buildDocsPlugin = () => {
                                 ext === 'css' ? 'text/css' :
                                 ext === 'js' ? 'application/javascript' :
                                 ext === 'json' ? 'application/json' :
+                                ext === 'il' ? 'text/plain' :
                                 'text/plain';
             res.setHeader('Content-Type', contentType);
+            // Force download for .il files
+            if (ext === 'il') {
+              const fileName = filePath.split(/[/\\]/).pop();
+              res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
+            }
             res.end(content);
             return;
           }
